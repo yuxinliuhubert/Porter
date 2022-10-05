@@ -202,7 +202,7 @@ void setup()
  
 void loop()
 {
-  static const uint32_t REFRESH_DELAY = 1000;
+  static const uint32_t REFRESH_DELAY = 100;
   static uint32_t next_detection;
 
   uint32_t current_time = millis();
