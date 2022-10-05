@@ -18,7 +18,7 @@ String compareString = "ec:9b:11:76:51:a4";
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
       String scannedDeviceAddress = advertisedDevice.getAddress().toString().c_str();
-//      Serial.println(advertisedDevice.toString().c_str());
+      Serial.println(advertisedDevice.getServiceUUID().toString().c_str());
       if (scannedDeviceAddress.equals(compareString)) {
         myDevice = advertisedDevice;
 //        Serial.println(myDevice.getAddress().toString().c_str());
