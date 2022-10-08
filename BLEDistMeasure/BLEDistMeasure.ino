@@ -4,19 +4,19 @@
 #include <BLEAdvertisedDevice.h>
  
 // Comment this line out for the final version (terse output in the serial monitor)
-//#define VERBOSE
+#define VERBOSE
 
 // Comment this out to re-enable connection signalling on pin 8
-//#define CONNECT_SIGNALLING
+#define CONNECT_SIGNALLING
 
 BLECharacteristic *pCharacteristic;
  
 // See the following for generating UUIDs:
 // https://www.uuidgenerator.net/
  
-#define SERVICE_UUID        "f9eeee4a-d61a-4aad-9380-9c5c93962c26"
+#define SERVICE_UUID        "f8f24fe2-4675-11ed-b878-0242ac120002"
 //"6012d087-05f8-41b0-90ed-07a75e80a104"
-#define CHARACTERISTIC_UUID "73af693f-f43f-4997-817c-3c226530ad76"
+#define CHARACTERISTIC_UUID "f8f25294-4675-11ed-b878-0242ac120002"
 #define DESCRIPTOR_UUID    "e8f45c7e-8be5-4918-bb84-467d3fd354aa"
 
 
@@ -73,6 +73,7 @@ private:
       // Update connection variables
     connection_id = param->connect.conn_id;
       memcpy(&remote_addr, param->connect.remote_bda, sizeof(remote_addr));
+      Serial.println(connection_id);
 
     // Install the RSSI callback
       BLEDevice::setCustomGapHandler(&Monitor::rssi_event);
@@ -202,7 +203,7 @@ void setup()
  
 void loop()
 {
-  static const uint32_t REFRESH_DELAY = 100;
+  static const uint32_t REFRESH_DELAY = 1000;
   static uint32_t next_detection;
 
   uint32_t current_time = millis();

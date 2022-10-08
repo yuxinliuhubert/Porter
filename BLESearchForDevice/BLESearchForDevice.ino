@@ -12,12 +12,12 @@ BLEAdvertisedDevice myDevice;
 
   int scanTime = 5; //In seconds
   
-String compareString = "ec:9b:11:76:51:a4";
+String compareString = "f8f24fe2-4675-11ed-b878-0242ac120002";
 
   
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-      String scannedDeviceAddress = advertisedDevice.getAddress().toString().c_str();
+      String scannedDeviceAddress = advertisedDevice.getServiceUUID().toString().c_str();
       Serial.println(advertisedDevice.toString().c_str());
       if (scannedDeviceAddress.equals(compareString)) {
         myDevice = advertisedDevice;
