@@ -23,7 +23,9 @@
 #include "HUSKYLENS.h"
 #include "DFMobile.h"
 
-DFMobile Robot (7,6,4,5);     // initiate the Motor pin
+
+
+DFMobile Robot (19,16,5,4);     // initiate the Motor pin
 
 HUSKYLENS huskylens;
 //HUSKYLENS green line >> SDA; blue line >> SCL

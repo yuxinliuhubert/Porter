@@ -41,6 +41,7 @@ void setup() {
     Serial.begin(115200);
     Robot.Direction (HIGH, LOW);  // initiate the positive direction  
     boolean yesorNo = Wire.begin();
+//    Wire.beginTransmission(1);
     Serial.print("yesorno   ");
     Serial.println(yesorNo);
 //    Wire.setPins(23,22);
