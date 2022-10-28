@@ -42,7 +42,11 @@
     #define MODE_LED_BEHAVIOUR          "MODE"
  
 #define ZUMO_FAST        255
- 
+
+TaskHandle_t Task1;
+TaskHandle_t Task2;
+
+
 //DFMobile Robot (7,6,4,5);     // initiate the Motor pin
 PIDLoop headingLoop(2000, 0, 0, false);
 HUSKYLENS huskylens;
@@ -73,8 +77,39 @@ extern uint8_t packetbuffer[];
 void setup() {
     Serial.begin(115200);
 //    Robot.Direction (HIGH, LOW);  // initiate the positive direction  
+
+    xTaskCreatePinnedToCore(
+                    Task1code,   /* Task function. */
+                    "Task1",     /* name of task. */
+                    10000,       /* Stack size of task */
+                    NULL,        /* parameter of the task */
+                    1,           /* priority of the task */
+                    &Task1,      /* Task handle to keep track of created task */
+                    0);          /* pin task to core 0 */                  
+  delay(500); 
+  
+
+  //create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
+  xTaskCreatePinnedToCore(
+                    Task2code,   /* Task function. */
+                    "Task2",     /* name of task. */
+                    10000,       /* Stack size of task */
+                    NULL,        /* parameter of the task */
+                    1,           /* priority of the task */
+                    &Task2,      /* Task handle to keep track of created task */
+                    1);          /* pin task to core 1 */
+    delay(500); 
+    
+
  
-    Wire.begin();
+}
+int left = 0, right = 0;
+
+
+
+ void Task1code( void * parameter) {
+  Wire.begin();
+    
     while (!huskylens.begin(Wire))
     {
         Serial.println(F("Begin failed!"));
@@ -82,9 +117,46 @@ void setup() {
         Serial.println(F("2.Please recheck the connection."));
         delay(100);
     }
+    Serial.println("Initializing HUSKYLENS");
     huskylens.writeAlgorithm(ALGORITHM_LINE_TRACKING); //Switch the algorithm to line tracking.
 
+  
+  for(;;) {
+   int32_t error; 
+    if (!huskylens.request(ID1)) {Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));left = 0; right = 0;}
+    else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
+    else if(!huskylens.available()) Serial.println(F("No block or arrow appears on the screen!"));
+    else
+    {
+        HUSKYLENSResult result = huskylens.read();
+        printResult(result);
+ 
+        // Calculate the error:
+        error = (int32_t)result.xTarget - (int32_t)160;
+ 
+        // Perform PID algorithm.
+        headingLoop.update(error);
+ 
+        // separate heading into left and right wheel velocities.
+        left = headingLoop.m_command;
+        right = -headingLoop.m_command;
+ 
+        left += ZUMO_FAST;
+        right += ZUMO_FAST;
+    }
 
+    if (!ble.isConnected()) {
+ 
+    Serial.println(String()+left+","+right);
+    }
+
+  }
+  vTaskDelete(NULL);
+}
+
+
+//BLE Module code
+void Task2code( void * pvParameters ){
       /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
 
@@ -115,11 +187,9 @@ void setup() {
   Serial.println();
 
   ble.verbose(false);
-}
-int left = 0, right = 0;
- 
-void loop() {
-    if (ble.isConnected() && !BLEConnected) {
+  
+  for(;;) {
+  if (ble.isConnected() && !BLEConnected) {
   Serial.println(F("******************************"));
 
   // LED Activity command is only supported from 0.6.6
@@ -137,9 +207,8 @@ void loop() {
   Serial.println(F("******************************"));
   BLEConnected = true;
 }
-
-  /* Wait for new data to arrive */
-  uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
+if (ble.isConnected() && BLEConnected) {
+uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
   if (len == 0) return;
  // Buttons
   if (packetbuffer[1] == 'B') {
@@ -152,32 +221,21 @@ void loop() {
       Serial.println(" released");
     }
   }
-    
-    int32_t error; 
-    if (!huskylens.request(ID1)) {Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));left = 0; right = 0;}
-    else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
-    else if(!huskylens.available()) Serial.println(F("No block or arrow appears on the screen!"));
-    else
-    {
-        HUSKYLENSResult result = huskylens.read();
-        printResult(result);
+} 
+if (!ble.isConnected()) {
+  BLEConnected = false;
+  Serial.println("reading sensors------------------------------------------");
+  delay(100);
+}
  
-        // Calculate the error:
-        error = (int32_t)result.xTarget - (int32_t)160;
- 
-        // Perform PID algorithm.
-        headingLoop.update(error);
- 
-        // separate heading into left and right wheel velocities.
-        left = headingLoop.m_command;
-        right = -headingLoop.m_command;
- 
-        left += ZUMO_FAST;
-        right += ZUMO_FAST;
-    }
- 
-    Serial.println(String()+left+","+right);
-//    Robot.Speed (left,right);
+
+
+
+  }
+  vTaskDelete(NULL);
+}
+
+void loop() {
 }
  
 void printResult(HUSKYLENSResult result){
