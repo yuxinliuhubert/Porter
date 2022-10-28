@@ -55,6 +55,10 @@ int ID1 = 1;
 void printResult(HUSKYLENSResult result);
 
 boolean BLEConnected = false;
+boolean BLECurrentConnection = false;
+String pressedOr = "";
+
+uint8_t buttNum;
  
 
  /* ...hardware SPI, using SCK/MOSI/MISO hardware SPI pins and then user selected CS/IRQ/RST */
@@ -122,6 +126,8 @@ int left = 0, right = 0;
 
   
   for(;;) {
+    
+    if (!BLECurrentConnection) {
    int32_t error; 
     if (!huskylens.request(ID1)) {Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));left = 0; right = 0;}
     else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
@@ -145,11 +151,11 @@ int left = 0, right = 0;
         right += ZUMO_FAST;
     }
 
-    if (!ble.isConnected()) {
  
     Serial.println(String()+left+","+right);
-    }
-
+    
+  } 
+  vTaskDelay(100);
   }
   vTaskDelete(NULL);
 }
@@ -188,8 +194,9 @@ void Task2code( void * pvParameters ){
 
   ble.verbose(false);
   
-  for(;;) {
+  while(1) {
   if (ble.isConnected() && !BLEConnected) {
+    BLECurrentConnection = true;
   Serial.println(F("******************************"));
 
   // LED Activity command is only supported from 0.6.6
@@ -209,28 +216,34 @@ void Task2code( void * pvParameters ){
 }
 if (ble.isConnected() && BLEConnected) {
 uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
-  if (len == 0) return;
+  if (len == 0) continue;
  // Buttons
   if (packetbuffer[1] == 'B') {
     uint8_t buttnum = packetbuffer[2] - '0';
+    buttNum = buttnum;
     boolean pressed = packetbuffer[3] - '0';
     Serial.print ("Button "); Serial.print(buttnum);
     if (pressed) {
+      pressedOr = " pressed";
+      
       Serial.println(" pressed");
     } else {
+      pressedOr = " released";
       Serial.println(" released");
     }
   }
 } 
-if (!ble.isConnected()) {
+if (!ble.isConnected() && BLEConnected) {
   BLEConnected = false;
+  BLECurrentConnection = false;
+ 
+} 
+if (!BLEConnected) {
   Serial.println("reading sensors------------------------------------------");
-  delay(100);
+//  delay(100);
 }
  
-
-
-
+vTaskDelay(100);
   }
   vTaskDelete(NULL);
 }
