@@ -104,7 +104,7 @@ void setup() {
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task2,      /* Task handle to keep track of created task */
+                    &Task1,      /* Task handle to keep track of created task */
                     0);          /* pin task to core 0 */                  
   delay(100); 
 //  
@@ -116,7 +116,7 @@ void setup() {
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task1,      /* Task handle to keep track of created task */
+                    &Task2,      /* Task handle to keep track of created task */
                     1);          /* pin task to core 1 */
     delay(100); 
     
@@ -126,8 +126,8 @@ void setup() {
 int left = 0, right = 0;
 
 
-
- void Task1code( void * parameter) {
+// Husky must run on core 1, task 2, otherwise fail
+ void Task2code( void * parameter) {
 
 //   mySerial.begin(115200);
   
@@ -189,7 +189,7 @@ int left = 0, right = 0;
 
 
 //BLE Module code
-void Task2code( void * pvParameters ){
+void Task1code( void * pvParameters ){
       /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
 
@@ -252,7 +252,6 @@ uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
     Serial.print ("Button "); Serial.print(buttnum);
     if (pressed) {
       pressedOr = " pressed";
-      
       Serial.println(" pressed");
     } else {
       pressedOr = " released";
