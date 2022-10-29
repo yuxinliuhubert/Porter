@@ -60,7 +60,8 @@ String pressedOr = "";
 
 uint8_t buttNum;
  
-
+//SoftwareSerial mySerial(22,23);
+  //HUSKYLENS green line >> Pin 22; blue line >> Pin 23
  /* ...hardware SPI, using SCK/MOSI/MISO hardware SPI pins and then user selected CS/IRQ/RST */
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
@@ -80,6 +81,21 @@ extern uint8_t packetbuffer[];
  
 void setup() {
     Serial.begin(115200);
+//       Wire.begin();
+//    
+//    if (!huskylens.begin(Wire))
+////   if (!huskylens.begin(mySerial))
+//    {
+//        Serial.println(F("Begin failed!"));
+//        Serial.println(F("1.Please recheck the \"Protocol Type\" in HUSKYLENS (General Settings>>Protol Type>>I2C)"));
+//        Serial.println(F("2.Please recheck the connection."));
+//        delay(100);
+////        ESP.restart();
+//    }
+//    Serial.println("Initializing HUSKYLENS");
+//    huskylens.writeAlgorithm(ALGORITHM_OBJECT_TRACKING); //Switch the algorithm to object tracking.
+
+
 //    Robot.Direction (HIGH, LOW);  // initiate the positive direction  
 
     xTaskCreatePinnedToCore(
@@ -88,11 +104,11 @@ void setup() {
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task1,      /* Task handle to keep track of created task */
+                    &Task2,      /* Task handle to keep track of created task */
                     0);          /* pin task to core 0 */                  
-  delay(500); 
-  
-
+  delay(100); 
+//  
+//
   //create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
   xTaskCreatePinnedToCore(
                     Task2code,   /* Task function. */
@@ -100,9 +116,9 @@ void setup() {
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task2,      /* Task handle to keep track of created task */
+                    &Task1,      /* Task handle to keep track of created task */
                     1);          /* pin task to core 1 */
-    delay(500); 
+    delay(100); 
     
 
  
@@ -112,24 +128,35 @@ int left = 0, right = 0;
 
 
  void Task1code( void * parameter) {
+
+//   mySerial.begin(115200);
+  
   Wire.begin();
     
-    while (!huskylens.begin(Wire))
+    if (!huskylens.begin(Wire))
+//   if (!huskylens.begin(mySerial))
     {
         Serial.println(F("Begin failed!"));
         Serial.println(F("1.Please recheck the \"Protocol Type\" in HUSKYLENS (General Settings>>Protol Type>>I2C)"));
         Serial.println(F("2.Please recheck the connection."));
         delay(100);
+//        ESP.restart();
     }
     Serial.println("Initializing HUSKYLENS");
-    huskylens.writeAlgorithm(ALGORITHM_LINE_TRACKING); //Switch the algorithm to line tracking.
+    huskylens.writeAlgorithm(ALGORITHM_OBJECT_TRACKING); //Switch the algorithm to object tracking.
 
   
   for(;;) {
     
     if (!BLECurrentConnection) {
    int32_t error; 
-    if (!huskylens.request(ID1)) {Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));left = 0; right = 0;}
+    if (!huskylens.request(ID1)) {
+      Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
+      left = 0; right = 0;
+// 
+      
+//      ESP.restart();
+      }
     else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
     else if(!huskylens.available()) Serial.println(F("No block or arrow appears on the screen!"));
     else
@@ -242,13 +269,52 @@ if (!BLEConnected) {
   Serial.println("reading sensors------------------------------------------");
 //  delay(100);
 }
- 
+
+ // important so that the watchdog bug doesnt get triggered
 vTaskDelay(100);
   }
   vTaskDelete(NULL);
 }
 
 void loop() {
+//
+//  
+////  for(;;) {
+//    
+////    if (!BLECurrentConnection) {
+//   int32_t error; 
+//    if (!huskylens.request(ID1)) {
+//      Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
+//      left = 0; right = 0;
+//// 
+//      
+////      ESP.restart();
+//      }
+//    else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
+//    else if(!huskylens.available()) Serial.println(F("No block or arrow appears on the screen!"));
+//    else
+//    {
+//        HUSKYLENSResult result = huskylens.read();
+//        printResult(result);
+// 
+//        // Calculate the error:
+//        error = (int32_t)result.xTarget - (int32_t)160;
+// 
+//        // Perform PID algorithm.
+//        headingLoop.update(error);
+// 
+//        // separate heading into left and right wheel velocities.
+//        left = headingLoop.m_command;
+//        right = -headingLoop.m_command;
+// 
+//        left += ZUMO_FAST;
+//        right += ZUMO_FAST;
+//    }
+//
+// 
+//    Serial.println(String()+left+","+right);
+//     
+//  delay(100);
 }
  
 void printResult(HUSKYLENSResult result){
