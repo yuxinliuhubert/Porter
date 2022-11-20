@@ -33,6 +33,14 @@
 #include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "BluefruitConfig.h"
+#include <Drive.h>  //Include the Drive library
+#include <analogWrite.h>
+//Define L298N pin mappings
+const int IN1 = 32;
+const int IN2 = 27;
+const int IN3 = 25;
+const int IN4 = 26;
+
 #if SOFTWARE_SERIAL_AVAILABLE
   #include <SoftwareSerial.h>
 #endif
@@ -43,8 +51,20 @@
  
 #define ZUMO_FAST        255
 
+const int MAX_PWM_VOLTAGE = 150;
+int NOM_PWM_VOLTAGE = 150;
+
+int lD = 0;
+int rD = 0;
+int prevLD = 0;
+int prevRD = 0;
+int D = 0;
+boolean remoteButtonPressed = false;
+boolean myPins[] = {0, 0, 0, 0};
+//boolean buttNum = 0;
 TaskHandle_t Task1;
 TaskHandle_t Task2;
+Drive drive(IN1, IN2, IN3, IN4);  //Create an instance of the function
 
 
 //DFMobile Robot (7,6,4,5);     // initiate the Motor pin
@@ -54,6 +74,8 @@ HUSKYLENS huskylens;
 int ID1 = 1;
 void printResult(HUSKYLENSResult result);
 
+
+// BLE set up
 boolean BLEConnected = false;
 boolean BLECurrentConnection = false;
 String pressedOr = "";
@@ -76,35 +98,24 @@ uint8_t readPacket(Adafruit_BLE *ble, uint16_t timeout);
 float parsefloat(uint8_t *buffer);
 void printHex(const uint8_t * data, const uint32_t numBytes);
 
+
+// interrupt
+volatile bool interruptCounter = false;    // check timer interrupt 1
+hw_timer_t * timer0 = NULL;
+portMUX_TYPE timerMux0 = portMUX_INITIALIZER_UNLOCKED;
+
 // the packet buffer
 extern uint8_t packetbuffer[];
  
 void setup() {
     Serial.begin(115200);
-//       Wire.begin();
-//    
-//    if (!huskylens.begin(Wire))
-////   if (!huskylens.begin(mySerial))
-//    {
-//        Serial.println(F("Begin failed!"));
-//        Serial.println(F("1.Please recheck the \"Protocol Type\" in HUSKYLENS (General Settings>>Protol Type>>I2C)"));
-//        Serial.println(F("2.Please recheck the connection."));
-//        delay(100);
-////        ESP.restart();
-//    }
-//    Serial.println("Initializing HUSKYLENS");
-//    huskylens.writeAlgorithm(ALGORITHM_OBJECT_TRACKING); //Switch the algorithm to object tracking.
-
-
-//    Robot.Direction (HIGH, LOW);  // initiate the positive direction  
-
     xTaskCreatePinnedToCore(
                     Task1code,   /* Task function. */
                     "Task1",     /* name of task. */
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task1,      /* Task handle to keep track of created task */
+                    &Task2,      /* Task handle to keep track of created task */
                     0);          /* pin task to core 0 */                  
   delay(100); 
 //  
@@ -116,7 +127,7 @@ void setup() {
                     10000,       /* Stack size of task */
                     NULL,        /* parameter of the task */
                     1,           /* priority of the task */
-                    &Task2,      /* Task handle to keep track of created task */
+                    &Task1,      /* Task handle to keep track of created task */
                     1);          /* pin task to core 1 */
     delay(100); 
     
@@ -126,8 +137,8 @@ void setup() {
 int left = 0, right = 0;
 
 
-// Husky must run on core 1, task 2, otherwise fail
- void Task2code( void * parameter) {
+
+ void Task1code( void * parameter) {
 
 //   mySerial.begin(115200);
   
@@ -181,7 +192,77 @@ int left = 0, right = 0;
  
     Serial.println(String()+left+","+right);
     
-  } 
+  } else {
+//    Serial.println(F("BLEWEEEEEEEEEEEE"));
+//        if (remoteButtonPressed) {
+
+      if (!myPins[0] && !myPins[1] && !myPins[2] && !myPins[3]) {
+        lD = 0;
+        rD = 0;
+        prevLD = lD;
+          prevRD = rD;
+          setSpeeds(lD, rD);
+      } else {
+//        if (buttNum = 1) {
+//          myPins[0] = false;
+//           myPins[1] = false;
+//            myPins[2] = false;
+//             myPins[3] = false;
+////          break;
+//        }
+       if (myPins[1]) {
+          lD = lD + 80;
+          if (lD >= NOM_PWM_VOLTAGE) {
+            lD = NOM_PWM_VOLTAGE;
+          }
+//          lD = D;
+          rD = lD;
+       }
+
+       
+        if (myPins[0]) { 
+          lD = lD - 80;
+          if (lD <= -NOM_PWM_VOLTAGE) {
+              lD = -NOM_PWM_VOLTAGE;
+            }
+//          lD = D;
+          rD = lD;
+
+        }
+        if (myPins[2]) {
+          lD = lD - 80;
+          rD = rD + 80;
+          if (rD >= MAX_PWM_VOLTAGE) {
+            rD = MAX_PWM_VOLTAGE;
+          }
+          if (lD <= -MAX_PWM_VOLTAGE) {
+            lD = -MAX_PWM_VOLTAGE;
+          }
+        }
+       if (myPins[3]) {
+          lD = lD + 80;
+          rD = rD - 80;
+          if (lD >= MAX_PWM_VOLTAGE) {
+            lD = MAX_PWM_VOLTAGE;
+          }
+          if (rD <= -MAX_PWM_VOLTAGE) {
+            rD = -MAX_PWM_VOLTAGE;
+          }
+       }
+//       }
+      Serial.print(lD);
+      Serial.print(" ");
+      Serial.print(rD);
+ 
+//      if (abs(prevLD - lD) > 4 || abs(prevRD - rD) > 4) {
+          prevLD = lD;
+          prevRD = rD;
+          setSpeeds(lD, rD);
+//      }
+ 
+      
+    }
+  }
   vTaskDelay(100);
   }
   vTaskDelete(NULL);
@@ -189,7 +270,7 @@ int left = 0, right = 0;
 
 
 //BLE Module code
-void Task1code( void * pvParameters ){
+void Task2code( void * pvParameters ){
       /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
 
@@ -247,13 +328,53 @@ uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
  // Buttons
   if (packetbuffer[1] == 'B') {
     uint8_t buttnum = packetbuffer[2] - '0';
-    buttNum = buttnum;
+    buttNum = buttnum; // 5 forward, 6 backward, 7 left, 8 right
     boolean pressed = packetbuffer[3] - '0';
     Serial.print ("Button "); Serial.print(buttnum);
     if (pressed) {
       pressedOr = " pressed";
+//      remoteButtonPressed = true;
+      switch (buttnum) {
+        case 5:
+        myPins[0] = true;
+        break;
+        case 6:
+        myPins[1] = true;
+        break;
+        case 7:
+        myPins[2] = true;
+        break;
+        case 8: 
+        myPins[3] = true;
+        break;
+        case 2:
+        NOM_PWM_VOLTAGE = 255;
+        case 3:
+        NOM_PWM_VOLTAGE = 150;
+
+        
+      }
+//      for (int i = 0; i < 4; i++) {
+//        Serial.print(myPins[i]);
+//        Serial.print(" ");
+//      }
       Serial.println(" pressed");
     } else {
+//      remoteButtonPressed = false;
+       switch (buttNum) {
+        case 5:
+        myPins[0] = false;
+        break;
+        case 6:
+        myPins[1] = false;
+        break;
+        case 7:
+        myPins[2] = false;
+        break;
+        case 8: 
+        myPins[3] = false;
+        break;
+      }
       pressedOr = " released";
       Serial.println(" released");
     }
@@ -326,4 +447,28 @@ void printResult(HUSKYLENSResult result){
     else{
         Serial.println("Object unknown!");
     }
+}
+
+void setSpeeds(int leftD, int rightD) {
+  if (leftD > 0) {
+    analogWrite(IN1, leftD);
+  analogWrite(IN2, LOW);
+  } else if (leftD < 0) {
+    analogWrite(IN1, LOW);
+  analogWrite(IN2, -leftD);
+  } else  {
+    analogWrite(IN1, LOW);
+  analogWrite(IN2, LOW);
+  }
+  if (rightD > 0) {
+    analogWrite(IN3, rightD);
+  analogWrite(IN4, LOW);
+  } else if (rightD < 0) {
+    analogWrite(IN3, LOW);
+  analogWrite(IN4, -rightD);
+  } else  {
+    analogWrite(IN3, LOW);
+  analogWrite(IN4, LOW);
+  }
+  
 }

@@ -13,10 +13,10 @@
 #include <Drive.h>  //Include the Drive library
 #include <analogWrite.h>
 //Define L298N pin mappings
-const int IN1 = 19;
-const int IN2 = 21;
-const int IN3 = 5;
-const int IN4 = 18;
+const int IN1 = 32;
+const int IN2 = 33;
+const int IN3 = 25;
+const int IN4 = 26;
 int D = 0;
 int prevD = 0;
 #define POT 14

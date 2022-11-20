@@ -5,7 +5,7 @@ void setup() {
   Serial.println(SCK);
   Serial.println(SS);
 //  Serial.println(RST);
-  Serial.println(IRQ);
+//  Serial.println(IRQ);
   // put your setup code here, to run once:
 
 }
