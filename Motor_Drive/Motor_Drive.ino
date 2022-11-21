@@ -14,7 +14,7 @@
 #include <analogWrite.h>
 //Define L298N pin mappings
 const int IN1 = 32;
-const int IN2 = 33;
+const int IN2 = 27;
 const int IN3 = 25;
 const int IN4 = 26;
 int D = 0;

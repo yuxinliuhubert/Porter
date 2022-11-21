@@ -29,17 +29,30 @@
 //BLE library
 #include <string.h>
 #include <Arduino.h>
+#include <ESP32Encoder.h>
 #include <SPI.h>
 #include "Adafruit_BLE.h"
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "BluefruitConfig.h"
 #include <Drive.h>  //Include the Drive library
 #include <analogWrite.h>
+#include "LIDARLite_v4LED.h"
+
+// pin definitions
 //Define L298N pin mappings
-const int IN1 = 32;
-const int IN2 = 27;
-const int IN3 = 25;
-const int IN4 = 26;
+#define IN1 32
+#define IN2 27
+#define IN3 25
+#define IN4 26
+#define RX 3
+#define TX 1
+
+#define leftEncoderY 35
+#define leftEncoderW 34
+#define rightEncoderY 39
+#define rightEncoderW 36
+#define SDA 21
+#define SCL 22
 
 #if SOFTWARE_SERIAL_AVAILABLE
   #include <SoftwareSerial.h>
@@ -51,23 +64,73 @@ const int IN4 = 26;
  
 #define ZUMO_FAST        255
 
-const int MAX_PWM_VOLTAGE = 150;
+
+// setting PWM properties ----------------------------
+const int freq = 5000;
+const int ledChannel_1 = 1;
+const int ledChannel_2 = 2;
+const int resolution = 8;
+const int MAX_PWM_VOLTAGE = 255;
 int NOM_PWM_VOLTAGE = 150;
 
 int lD = 0;
 int rD = 0;
 int prevLD = 0;
 int prevRD = 0;
-int D = 0;
 boolean remoteButtonPressed = false;
-boolean myPins[] = {0, 0, 0, 0};
-//boolean buttNum = 0;
+boolean myPins[] = {0, 0, 0, 0, 0};
+
+SoftwareSerial mySerial(RX, TX); // RX, TX
+//HUSKYLENS green line >> Pin 10 1st; blue line >> Pin 11 2nd
+
+// Motor info
+ESP32Encoder leftEncoder;  
+ESP32Encoder rightEncoder;
+int omegaSpeed = 0;
+int omegaDes = 0;
+int omegaMax = 18;   // CHANGE THIS VALUE TO YOUR MEASURED MAXIMUM SPEED
+int dir = 1;
+int potReading = 0;
+
+int Kp = 80;   // TUNE THESE VALUES TO CHANGE CONTROLLER PERFORMANCE
+int Ki = 2;
+int pError = 0;
+int IMax = 100;
+
+//Setup interrupt variables ----------------------------
+volatile int leftCount = 0; // encoder count
+volatile int rightCount = 0; // encoder count
+volatile bool interruptCounter = false;    // check timer interrupt 1
+volatile bool deltaT = false;     // check timer interrupt 2
+int totalInterrupts = 0;   // counts the number of triggering of the alarm
+hw_timer_t * timer0 = NULL;
+hw_timer_t * timer1 = NULL;
+portMUX_TYPE timerMux0 = portMUX_INITIALIZER_UNLOCKED;
+portMUX_TYPE timerMux1 = portMUX_INITIALIZER_UNLOCKED;
+
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 Drive drive(IN1, IN2, IN3, IN4);  //Create an instance of the function
+LIDARLite_v4LED myLIDAR; //Click here to get the library: http://librarymanager/All#SparkFun_LIDARLitev4 by SparkFun
+
+//Initialization ------------------------------------
+void IRAM_ATTR onTime0() {
+  portENTER_CRITICAL_ISR(&timerMux0);
+  interruptCounter = true; // the function to be called when timer interrupt is triggered
+  portEXIT_CRITICAL_ISR(&timerMux0);
+}
+
+void IRAM_ATTR onTime1() {
+  portENTER_CRITICAL_ISR(&timerMux1);
+  leftCount = leftEncoder.getCount();
+  rightCount = rightEncoder.getCount();
+  leftEncoder.clearCount();
+  rightEncoder.clearCount();
+  deltaT = true; // the function to be called when timer interrupt is triggered
+  portEXIT_CRITICAL_ISR(&timerMux1);
+}
 
 
-//DFMobile Robot (7,6,4,5);     // initiate the Motor pin
 PIDLoop headingLoop(2000, 0, 0, false);
 HUSKYLENS huskylens;
 //HUSKYLENS green line >> SDA; blue line >> SCL
@@ -83,7 +146,7 @@ String pressedOr = "";
 uint8_t buttNum;
  
 //SoftwareSerial mySerial(22,23);
-  //HUSKYLENS green line >> Pin 22; blue line >> Pin 23
+  //HUSKYLENS green line >> Pin 2 or SCL2; blue line >> Pin 23 SDA
  /* ...hardware SPI, using SCK/MOSI/MISO hardware SPI pins and then user selected CS/IRQ/RST */
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
@@ -97,12 +160,6 @@ void error(const __FlashStringHelper*err) {
 uint8_t readPacket(Adafruit_BLE *ble, uint16_t timeout);
 float parsefloat(uint8_t *buffer);
 void printHex(const uint8_t * data, const uint32_t numBytes);
-
-
-// interrupt
-volatile bool interruptCounter = false;    // check timer interrupt 1
-hw_timer_t * timer0 = NULL;
-portMUX_TYPE timerMux0 = portMUX_INITIALIZER_UNLOCKED;
 
 // the packet buffer
 extern uint8_t packetbuffer[];
@@ -139,12 +196,30 @@ int left = 0, right = 0;
 
 
  void Task1code( void * parameter) {
+//mySerial.begin(115200);
+   mySerial.begin(9600);
+  ESP32Encoder::useInternalWeakPullResistors = UP; // Enable the weak pull up resistors
+  leftEncoder.attachHalfQuad(leftEncoderY, leftEncoderW); // Attache pins for use as encoder pins
+  leftEncoder.setCount(0);  // set starting count value after attaching
+  rightEncoder.attachHalfQuad(rightEncoderY, rightEncoderW); // Attache pins for use as encoder pins
+  rightEncoder.setCount(0);  // set starting count value after attaching
 
-//   mySerial.begin(115200);
   
-  Wire.begin();
+  timer1 = timerBegin(1, 80, true);  // timer 1, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 80 -> 1000 ns = 1 us, countUp
+  timerAttachInterrupt(timer1, &onTime1, true); // edge (not level) triggered
+  timerAlarmWrite(timer1, 10000, true); // 10000 * 1 us = 10 ms, autoreload true
+  timerAlarmEnable(timer1); // enable
+
+  Wire.begin(SDA,SCL);
+
+    //check if LIDAR will acknowledge over I2C
+  if (myLIDAR.begin() == false) {
+    Serial.println("Device did not acknowledge! Freezing.");
+//    while(1);
+  }
+  
     
-    if (!huskylens.begin(Wire))
+    if (!huskylens.begin(mySerial))
 //   if (!huskylens.begin(mySerial))
     {
         Serial.println(F("Begin failed!"));
@@ -161,6 +236,13 @@ int left = 0, right = 0;
     
     if (!BLECurrentConnection) {
    int32_t error; 
+   float newDistance;
+
+  //getDistance() returns the distance reading in cm
+  newDistance = myLIDAR.getDistance();
+  Serial.print("New distance: ");
+  Serial.print(newDistance/100);
+  Serial.println(" m");
     if (!huskylens.request(ID1)) {
       Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
       left = 0; right = 0;
@@ -173,7 +255,7 @@ int left = 0, right = 0;
     else
     {
         HUSKYLENSResult result = huskylens.read();
-        printResult(result);
+//        printResult(result);
  
         // Calculate the error:
         error = (int32_t)result.xTarget - (int32_t)160;
@@ -190,32 +272,30 @@ int left = 0, right = 0;
     }
 
  
-    Serial.println(String()+left+","+right);
+//    Serial.println(String()+left+","+right);
     
   } else {
 //    Serial.println(F("BLEWEEEEEEEEEEEE"));
 //        if (remoteButtonPressed) {
 
-      if (!myPins[0] && !myPins[1] && !myPins[2] && !myPins[3]) {
+    if (myPins[4] == true) {
+      myPins[0] = false;
+      myPins[1] = false;
+      myPins[2] = false;
+      myPins[3] = false;
+    }
+    if (!myPins[0] && !myPins[1] && !myPins[2] && !myPins[3]) {
         lD = 0;
         rD = 0;
         prevLD = lD;
           prevRD = rD;
           setSpeeds(lD, rD);
       } else {
-//        if (buttNum = 1) {
-//          myPins[0] = false;
-//           myPins[1] = false;
-//            myPins[2] = false;
-//             myPins[3] = false;
-////          break;
-//        }
        if (myPins[1]) {
           lD = lD + 80;
           if (lD >= NOM_PWM_VOLTAGE) {
             lD = NOM_PWM_VOLTAGE;
           }
-//          lD = D;
           rD = lD;
        }
 
@@ -225,11 +305,10 @@ int left = 0, right = 0;
           if (lD <= -NOM_PWM_VOLTAGE) {
               lD = -NOM_PWM_VOLTAGE;
             }
-//          lD = D;
           rD = lD;
 
         }
-        if (myPins[2]) {
+        if (myPins[2] && myPins[1] || myPins[2] && myPins[0] ) {
           lD = lD - 80;
           rD = rD + 80;
           if (rD >= MAX_PWM_VOLTAGE) {
@@ -238,8 +317,17 @@ int left = 0, right = 0;
           if (lD <= -MAX_PWM_VOLTAGE) {
             lD = -MAX_PWM_VOLTAGE;
           }
+        } else if (myPins[2]) {
+          lD = lD - 80;
+          rD = rD + 80;
+          if (rD >= NOM_PWM_VOLTAGE) {
+            rD = NOM_PWM_VOLTAGE;
+          }
+          if (lD <= -NOM_PWM_VOLTAGE) {
+            lD = -NOM_PWM_VOLTAGE;
+          }
         }
-       if (myPins[3]) {
+       if (myPins[3] && myPins[1] || myPins[3] && myPins[0]) {
           lD = lD + 80;
           rD = rD - 80;
           if (lD >= MAX_PWM_VOLTAGE) {
@@ -248,22 +336,26 @@ int left = 0, right = 0;
           if (rD <= -MAX_PWM_VOLTAGE) {
             rD = -MAX_PWM_VOLTAGE;
           }
-       }
-//       }
-      Serial.print(lD);
+       } else if (myPins[3]) {
+          lD = lD + 80;
+          rD = rD - 80;
+          if (lD >= NOM_PWM_VOLTAGE) {
+            lD = NOM_PWM_VOLTAGE;
+          }
+          if (rD <= -NOM_PWM_VOLTAGE) {
+            rD = -NOM_PWM_VOLTAGE;
+          }
+        }
+      Serial.print(leftCount);
       Serial.print(" ");
-      Serial.print(rD);
- 
-//      if (abs(prevLD - lD) > 4 || abs(prevRD - rD) > 4) {
-          prevLD = lD;
-          prevRD = rD;
-          setSpeeds(lD, rD);
-//      }
- 
+      Serial.println(rightCount);
+      prevLD = lD;
+      prevRD = rD;
+      setSpeeds(lD, rD);
       
     }
   }
-  vTaskDelay(100);
+  vTaskDelay(50);
   }
   vTaskDelete(NULL);
 }
@@ -333,7 +425,6 @@ uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
     Serial.print ("Button "); Serial.print(buttnum);
     if (pressed) {
       pressedOr = " pressed";
-//      remoteButtonPressed = true;
       switch (buttnum) {
         case 5:
         myPins[0] = true;
@@ -347,21 +438,24 @@ uint8_t len = readPacket(&ble, BLE_READPACKET_TIMEOUT);
         case 8: 
         myPins[3] = true;
         break;
+        case 1:
+        myPins[4] = true;
+        break;
         case 2:
         NOM_PWM_VOLTAGE = 255;
+        break;
         case 3:
         NOM_PWM_VOLTAGE = 150;
+        break;
 
         
       }
-//      for (int i = 0; i < 4; i++) {
-//        Serial.print(myPins[i]);
-//        Serial.print(" ");
-//      }
       Serial.println(" pressed");
     } else {
-//      remoteButtonPressed = false;
        switch (buttNum) {
+        case 1:
+        myPins[4] = false;
+        break;
         case 5:
         myPins[0] = false;
         break;
@@ -397,44 +491,6 @@ vTaskDelay(100);
 }
 
 void loop() {
-//
-//  
-////  for(;;) {
-//    
-////    if (!BLECurrentConnection) {
-//   int32_t error; 
-//    if (!huskylens.request(ID1)) {
-//      Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
-//      left = 0; right = 0;
-//// 
-//      
-////      ESP.restart();
-//      }
-//    else if(!huskylens.isLearned()) {Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));left = 0; right = 0;}
-//    else if(!huskylens.available()) Serial.println(F("No block or arrow appears on the screen!"));
-//    else
-//    {
-//        HUSKYLENSResult result = huskylens.read();
-//        printResult(result);
-// 
-//        // Calculate the error:
-//        error = (int32_t)result.xTarget - (int32_t)160;
-// 
-//        // Perform PID algorithm.
-//        headingLoop.update(error);
-// 
-//        // separate heading into left and right wheel velocities.
-//        left = headingLoop.m_command;
-//        right = -headingLoop.m_command;
-// 
-//        left += ZUMO_FAST;
-//        right += ZUMO_FAST;
-//    }
-//
-// 
-//    Serial.println(String()+left+","+right);
-//     
-//  delay(100);
 }
  
 void printResult(HUSKYLENSResult result){
