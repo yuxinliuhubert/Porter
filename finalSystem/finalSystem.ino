@@ -32,7 +32,7 @@
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "BluefruitConfig.h"
 #include <Drive.h>  //Include the Drive library
-#include <analogWrite.h>
+#include "analogWrite.h"
 #include "LIDARLite_v4LED.h"
 #include <PID_v1.h>;
 
@@ -244,8 +244,8 @@ void Task2code( void * pvParameters ) {
         break;
 
     }
-    
-//    vTaskDelay(1);
+
+    //    vTaskDelay(1);
   }
   vTaskDelete(NULL);
 }
@@ -269,96 +269,103 @@ void setSpeeds(int leftVDes, int rightVDes) {
   if (deltaT) {
 
     portENTER_CRITICAL(&timerMux1);
-      deltaT = false;
-      portEXIT_CRITICAL(&timerMux1);
-    
-  int leftVDifference = leftVDes - leftCount;
-  int rightVDifference = rightVDes - rightCount;
-  int dLError = leftVDifference - prevLeftDifference;
-  int dRError = rightVDifference - prevRightDifference;
-//    dLError = 0;
-//   dRError = 0;
-  prevLeftDifference = leftVDifference;
-  prevRightDifference = rightVDifference;
-//  Serial.println(String() + F("left difference is: ") + leftVDifference + F(", right difference is: ") + rightVDifference);
-//Serial.println(String() + F("left count is: ") + leftCount + F(", right count is: ") + rightCount);
-//Serial.println(String() + F("left Error is: ") + dLError + F(", right error is: ") + dRError);
-  iLError += leftVDifference;
-  iRError += rightVDifference;
+    deltaT = false;
+    portEXIT_CRITICAL(&timerMux1);
 
-  if (abs(iLError) >= sIMax) {
-        if (iLError < 0) {
-          iLError = -sIMax;
-        } else {
-          iLError = sIMax;
-        }
+    int leftVDifference = leftVDes - leftCount;
+    int rightVDifference = rightVDes - rightCount;
+    int dLError = leftVDifference - prevLeftDifference;
+    int dRError = rightVDifference - prevRightDifference;
+    //    dLError = 0;
+    //   dRError = 0;
+    prevLeftDifference = leftVDifference;
+    prevRightDifference = rightVDifference;
+    //  Serial.println(String() + F("left difference is: ") + leftVDifference + F(", right difference is: ") + rightVDifference);
+    //Serial.println(String() + F("left count is: ") + leftCount + F(", right count is: ") + rightCount);
+    //Serial.println(String() + F("left Error is: ") + dLError + F(", right error is: ") + dRError);
+    iLError += leftVDifference;
+    iRError += rightVDifference;
+
+    if (abs(iLError) >= sIMax) {
+      if (iLError < 0) {
+        iLError = -sIMax;
+      } else {
+        iLError = sIMax;
       }
+    }
 
-      if (abs(iRError) >= sIMax) {
-        if (iRError < 0) {
-          iRError = -sIMax;
-        } else {
-          iRError = sIMax;
-        }
+    if (abs(iRError) >= sIMax) {
+      if (iRError < 0) {
+        iRError = -sIMax;
+      } else {
+        iRError = sIMax;
       }
+    }
 
-      int leftD = calculateD(leftVDifference, iLError, dLError);
-      int rightD = calculateD(rightVDifference, iRError, dRError);
-//      Serial.println(String() + F("iLError is: ") + iLError + F(", iRError is: ") + iRError);
+    int leftD = calculateD(leftVDifference, iLError, dLError);
+    int rightD = calculateD(rightVDifference, iRError, dRError);
+    //      Serial.println(String() + F("iLError is: ") + iLError + F(", iRError is: ") + iRError);
 
-//      Serial.println(String() + F("left input is: ") + leftD + F(", right input is: ") + rightD);
-      Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
+    //      Serial.println(String() + F("left input is: ") + leftD + F(", right input is: ") + rightD);
+    Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
 
 
- if (leftD >= MAX_PWM_VOLTAGE) {
-        leftD = MAX_PWM_VOLTAGE;
-      }
-      if (leftD <= -MAX_PWM_VOLTAGE) {
-        leftD = -MAX_PWM_VOLTAGE;
-      }
+    if (leftD >= MAX_PWM_VOLTAGE) {
+      leftD = MAX_PWM_VOLTAGE;
+    }
+    if (leftD <= -MAX_PWM_VOLTAGE) {
+      leftD = -MAX_PWM_VOLTAGE;
+    }
 
-   if (rightD >= MAX_PWM_VOLTAGE) {
-        rightD = MAX_PWM_VOLTAGE;
-      }
-      if (rightD <= -MAX_PWM_VOLTAGE) {
-        rightD = -MAX_PWM_VOLTAGE;
-      }
-  if (rightD > 0) {
-//    analogWrite(leftPWM, rightD);
-//analogWrite(IN1, LOW);
-//    analogWrite(IN2, rightD);
-    analogWrite(IN1, rightD);
-    analogWrite(IN2, LOW);
-   
-  } else if (rightD < 0) {
-    analogWrite(IN1, LOW);
-    analogWrite(IN2, -rightD);
-//     analogWrite(IN1, -rightD);
-//    analogWrite(IN2, LOW);
-  } else  {
-    analogWrite(IN1, LOW);
-    analogWrite(IN2, LOW);
-  }
-  if (leftD > 0) {
-analogWrite(IN3, LOW);
-    analogWrite(IN4, leftD);
-//    analogWrite(IN3, leftD);
-//    analogWrite(IN4, LOW);
-  } else if (leftD < 0) {
-//    analogWrite(IN3, LOW);
-//    analogWrite(IN4, -leftD);
-       analogWrite(IN3, -leftD);
-    analogWrite(IN4, LOW);
-  } else  {
-    analogWrite(IN3, LOW);
-    analogWrite(IN4, LOW);
-  }
+    if (rightD >= MAX_PWM_VOLTAGE) {
+      rightD = MAX_PWM_VOLTAGE;
+    }
+    if (rightD <= -MAX_PWM_VOLTAGE) {
+      rightD = -MAX_PWM_VOLTAGE;
+    }
+    if (rightD > 0) {
+      //    analogWrite(leftPWM, rightD);
+      //analogWrite(IN1, LOW);
+      //    analogWrite(IN2, rightD);
+      analogWrite(IN1, rightD);
+      analogWrite(IN2, LOW);
+
+    } else if (rightD < 0) {
+      analogWrite(IN1, LOW);
+      analogWrite(IN2, -rightD);
+      //     analogWrite(IN1, -rightD);
+      //    analogWrite(IN2, LOW);
+    } else  {
+      analogWrite(IN1, LOW);
+      analogWrite(IN2, LOW);
+    }
+    if (leftD > 0) {
+      analogWrite(IN3, LOW);
+      analogWrite(IN4, leftD);
+      //    analogWrite(IN3, leftD);
+      //    analogWrite(IN4, LOW);
+    } else if (leftD < 0) {
+      //    analogWrite(IN3, LOW);
+      //    analogWrite(IN4, -leftD);
+      analogWrite(IN3, -leftD);
+      analogWrite(IN4, LOW);
+    } else  {
+      analogWrite(IN3, LOW);
+      analogWrite(IN4, LOW);
+    }
   }
 
 }
+
+void stopMoving() {
+  analogWrite(IN1, LOW);
+  analogWrite(IN2, LOW);
+  analogWrite(IN3, LOW);
+  analogWrite(IN4, LOW);
+}
 //
 int calculateD(int difference, int iError, int dError) {
-  return Ksp*difference +Ksi*iError + Ksd*dError;
+  return Ksp * difference + Ksi * iError + Ksd * dError;
 }
 
 
@@ -368,8 +375,8 @@ void motorCoreSetup() {
   mySerial.begin(9600);
   // PID variable set up
   setPoint = 0;
-//  myPID.SetMode(AUTOMATIC);
-//  myPID.SetTunings(Kp, Ki, Kd);
+  //  myPID.SetMode(AUTOMATIC);
+  //  myPID.SetTunings(Kp, Ki, Kd);
 
 
   ESP32Encoder::useInternalWeakPullResistors = UP; // Enable the weak pull up resistors
@@ -415,29 +422,32 @@ void state0MotorCore() {
   //  Serial.print(newDistance/100);
   //  Serial.println(" m");
   if (!huskylens.request(ID1)) {
-//    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
+    //    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
     lD = 0;
     rD = 0;
+    stopMoving();
   }
   else if (!huskylens.isLearned()) {
-//    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
+    //    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
     lD = 0;
     rD = 0;
+    stopMoving();
   }
   else if (!huskylens.available()) {
-//    Serial.println(F("No block or arrow appears on the screen!"));
+    //    Serial.println(F("No block or arrow appears on the screen!"));
     lD = 0;
     rD = 0;
+    stopMoving();
   } else {
     HUSKYLENSResult result = huskylens.read();
     //        printResult(result);
     int xCenter = result.xCenter;
     int difference = SCREEN_X_CENTER - xCenter;
     int output = 0;
-     if (abs(difference) > 10) {
-    int dError = difference - prevDifference;
-    prevDifference = difference;
-     pError += difference;
+    if (abs(difference) > angleTolerance) {
+      int dError = difference - prevDifference;
+      prevDifference = difference;
+      pError += difference;
       if (abs(pError) >= IMax) {
         if (pError < 0) {
           pError = -IMax;
@@ -446,54 +456,59 @@ void state0MotorCore() {
         }
       }
 
-//    int inputConverted = map(difference, -160, 160, -MAX_PWM_VOLTAGE, MAX_PWM_VOLTAGE);
-//    input = abs(inputConverted);
-input = difference;
-//    myPID.Compute();
-//    Serial.println(String() + F("input is: ") + input + F(" ,output is: ") + output);
+      //    int inputConverted = map(difference, -160, 160, -MAX_PWM_VOLTAGE, MAX_PWM_VOLTAGE);
+      //    input = abs(inputConverted);
+      input = difference;
+      //    myPID.Compute();
+      //    Serial.println(String() + F("input is: ") + input + F(" ,output is: ") + output);
 
-output = Kp*difference+Ki*pError + Kd*dError;
-     }
+      output = Kp * difference + Ki * pError + Kd * dError;
 
-Serial.println(difference);
-Serial.println(output);
-lD = -output;
-rD = output;
-//    if (difference < 0) {
-//      lD = -output;
-//      rD = output;
-//    } else {
-//      lD = output;
-//      rD = -output;
-//    }
+      Serial.println(difference);
+      Serial.println(output);
+      lD = -output;
+      rD = output;
+      //    if (difference < 0) {
+      //      lD = -output;
+      //      rD = output;
+      //    } else {
+      //      lD = output;
+      //      rD = -output;
+      //    }
 
-    //           lD = lD - output;
-    //          rD = rD + output;
-    if (rD >= vDes) {
-      rD = vDes;
-    } else if (rD <= -vDes) {
-      rD = -vDes;
-    }
-    if (lD <= -vDes) {
-      lD = -vDes;
-    } else if (lD >= vDes) {
-      lD = vDes;
-    }
-////    Serial.println(String() + F("ld is: ") + lD + F(" ,rd is: ") + rD);
-//Serial.println(String() +F("input ") + input);
-//Serial.println(String() +F("output ") + output);
-//Serial.println(String() +F("lD ") + lD);
-//Serial.println(String() +F("rD ") + rD);
+      //           lD = lD - output;
+      //          rD = rD + output;
+      if (rD >= vDes) {
+        rD = vDes;
+      } else if (rD <= -vDes) {
+        rD = -vDes;
+      }
+      if (lD <= -vDes) {
+        lD = -vDes;
+      } else if (lD >= vDes) {
+        lD = vDes;
+      }
+      ////    Serial.println(String() + F("ld is: ") + lD + F(" ,rd is: ") + rD);
+      //Serial.println(String() +F("input ") + input);
+      //Serial.println(String() +F("output ") + output);
+      //Serial.println(String() +F("lD ") + lD);
+      //Serial.println(String() +F("rD ") + rD);
 
-    //          lD = lD + output;
-    //          rD = rD - output;
+      //          lD = lD + output;
+      //          rD = rD - output;
 
-//    Serial.println(String() + F("difference is: ") + difference);
-    //        Serial.println (String() + F("leftWheel is: ") + leftEncoder.getCount());
-    //        if (
+      //    Serial.println(String() + F("difference is: ") + difference);
+      //        Serial.println (String() + F("leftWheel is: ") + leftEncoder.getCount());
+      //        if (
 
+
+    setSpeeds(lD, rD);
+  } else {
+    stopMoving();
   }
-  setSpeeds(lD, rD);
+  }
+
+
 }
 
 void state1MotorCore() {
@@ -510,28 +525,28 @@ void state1MotorCore() {
     prevRD = rD;
     iLError = 0;
     iRError = 0;
-    setSpeeds(0, 0);
+    stopMoving();
   } else {
     if (myPins[1]) {
-//      lD = lD + 80;
-//      if (lD >= NOM_PWM_VOLTAGE) {
-//        lD = NOM_PWM_VOLTAGE;
-//      }
-//      rD = lD;
-setSpeeds(-vDes, -vDes);
+      //      lD = lD + 80;
+      //      if (lD >= NOM_PWM_VOLTAGE) {
+      //        lD = NOM_PWM_VOLTAGE;
+      //      }
+      //      rD = lD;
+      setSpeeds(-vDes, -vDes);
     }
 
 
-// forward motion
+    // forward motion
     if (myPins[0]) {
-//      lD = lD - 80;
-//      if (lD <= -NOM_PWM_VOLTAGE) {
-//        lD = -NOM_PWM_VOLTAGE;
-//      }
-//      rD = lD;
-Serial.println("button 5 pressed");
+      //      lD = lD - 80;
+      //      if (lD <= -NOM_PWM_VOLTAGE) {
+      //        lD = -NOM_PWM_VOLTAGE;
+      //      }
+      //      rD = lD;
+      Serial.println("button 5 pressed");
 
-setSpeeds(vDes, vDes);
+      setSpeeds(vDes, vDes);
 
 
     }
@@ -545,16 +560,16 @@ setSpeeds(vDes, vDes);
         lD = -MAX_PWM_VOLTAGE;
       }
     } else if (myPins[2]) {
-      // left only 
-//      lD = lD - 80;
-//      rD = rD + 80;
-//      if (rD >= NOM_PWM_VOLTAGE) {
-//        rD = NOM_PWM_VOLTAGE;
-//      }
-//      if (lD <= -NOM_PWM_VOLTAGE) {
-//        lD = -NOM_PWM_VOLTAGE;
-//      }
-setSpeeds(-vDes, vDes);
+      // left only
+      //      lD = lD - 80;
+      //      rD = rD + 80;
+      //      if (rD >= NOM_PWM_VOLTAGE) {
+      //        rD = NOM_PWM_VOLTAGE;
+      //      }
+      //      if (lD <= -NOM_PWM_VOLTAGE) {
+      //        lD = -NOM_PWM_VOLTAGE;
+      //      }
+      setSpeeds(-vDes, vDes);
     }
     if (myPins[3] && myPins[1] || myPins[3] && myPins[0]) {
       lD = lD + 80;
@@ -567,20 +582,20 @@ setSpeeds(-vDes, vDes);
       }
     } else if (myPins[3]) {
       // right only
-//      lD = lD + 80;
-//      rD = rD - 80;
-//      if (lD >= NOM_PWM_VOLTAGE) {
-//        lD = NOM_PWM_VOLTAGE;
-//      }
-//      if (rD <= -NOM_PWM_VOLTAGE) {
-//        rD = -NOM_PWM_VOLTAGE;
-//      }
-setSpeeds(vDes, -vDes);
+      //      lD = lD + 80;
+      //      rD = rD - 80;
+      //      if (lD >= NOM_PWM_VOLTAGE) {
+      //        lD = NOM_PWM_VOLTAGE;
+      //      }
+      //      if (rD <= -NOM_PWM_VOLTAGE) {
+      //        rD = -NOM_PWM_VOLTAGE;
+      //      }
+      setSpeeds(vDes, -vDes);
     }
 
     prevLD = lD;
     prevRD = rD;
-//    setSpeeds(lD, rD);
+    //    setSpeeds(lD, rD);
   }
 }
 
