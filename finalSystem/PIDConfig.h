@@ -15,8 +15,15 @@
 
 #define sIMax 50
 
+#define outerTurningSpeedFraction 2
+#define innerTurningSpeedFraction 0.7
+
 // 14 desireable speed when motor running
-const int vDes = 14;
+
+#define NOM_VDES 14
+#define MAX_VDES 44
+int vDes = NOM_VDES;
+
 
 int prevLeftDifference = 0;
 int prevRightDifference = 0;

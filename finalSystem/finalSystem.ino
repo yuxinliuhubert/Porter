@@ -56,11 +56,11 @@
 #include <SoftwareSerial.h>
 #endif
 
-#define FACTORYRESET_ENABLE         1
-#define MINIMUM_FIRMWARE_VERSION    "0.6.6"
-#define MODE_LED_BEHAVIOUR          "MODE"
+#define FACTORYRESET_ENABLE 1
+#define MINIMUM_FIRMWARE_VERSION "0.6.6"
+#define MODE_LED_BEHAVIOUR "MODE"
 
-#define ZUMO_FAST        255
+#define ZUMO_FAST 255
 
 
 // state machine set up
@@ -80,7 +80,7 @@ int rD = 0;
 int prevLD = 0;
 int prevRD = 0;
 boolean remoteButtonPressed = false;
-boolean myPins[] = {0, 0, 0, 0, 0};
+boolean myPins[] = { 0, 0, 0, 0, 0 };
 int prevDifference = 0;
 double setPoint;
 double input;
@@ -92,7 +92,7 @@ int prevResult = 160;
 #define SCREEN_X_CENTER 160
 
 
-SoftwareSerial mySerial(RX, TX); // RX, TX
+SoftwareSerial mySerial(RX, TX);  // RX, TX
 //HUSKYLENS green line >> Pin 10 1st; blue line >> Pin 11 2nd
 
 // Motor info
@@ -100,7 +100,7 @@ ESP32Encoder leftEncoder;
 ESP32Encoder rightEncoder;
 int omegaSpeed = 0;
 int omegaDes = 0;
-int omegaMax = 18;   // CHANGE THIS VALUE TO YOUR MEASURED MAXIMUM SPEED
+int omegaMax = 18;  // CHANGE THIS VALUE TO YOUR MEASURED MAXIMUM SPEED
 int dir = 1;
 int potReading = 0;
 
@@ -109,25 +109,25 @@ int potReading = 0;
 int pError = 0;
 
 //Setup interrupt variables ----------------------------
-volatile int leftCount = 0; // encoder count
-volatile int rightCount = 0; // encoder count
-volatile bool interruptCounter = false;    // check timer interrupt 1
-volatile bool deltaT = false;     // check timer interrupt 2
-int totalInterrupts = 0;   // counts the number of triggering of the alarm
-hw_timer_t * timer0 = NULL;
-hw_timer_t * timer1 = NULL;
+volatile int leftCount = 0;              // encoder count
+volatile int rightCount = 0;             // encoder count
+volatile bool interruptCounter = false;  // check timer interrupt 1
+volatile bool deltaT = false;            // check timer interrupt 2
+int totalInterrupts = 0;                 // counts the number of triggering of the alarm
+hw_timer_t *timer0 = NULL;
+hw_timer_t *timer1 = NULL;
 portMUX_TYPE timerMux0 = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE timerMux1 = portMUX_INITIALIZER_UNLOCKED;
 
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 Drive drive(IN1, IN2, IN3, IN4);  //Create an instance of the function
-LIDARLite_v4LED myLIDAR; //Click here to get the library: http://librarymanager/All#SparkFun_LIDARLitev4 by SparkFun
+LIDARLite_v4LED myLIDAR;          //Click here to get the library: http://librarymanager/All#SparkFun_LIDARLitev4 by SparkFun
 
 //Initialization ------------------------------------
 void IRAM_ATTR onTime0() {
   portENTER_CRITICAL_ISR(&timerMux0);
-  interruptCounter = true; // the function to be called when timer interrupt is triggered
+  interruptCounter = true;  // the function to be called when timer interrupt is triggered
   portEXIT_CRITICAL_ISR(&timerMux0);
 }
 
@@ -137,7 +137,7 @@ void IRAM_ATTR onTime1() {
   rightCount = rightEncoder.getCount();
   leftEncoder.clearCount();
   rightEncoder.clearCount();
-  deltaT = true; // the function to be called when timer interrupt is triggered
+  deltaT = true;  // the function to be called when timer interrupt is triggered
   portEXIT_CRITICAL_ISR(&timerMux1);
 }
 
@@ -161,15 +161,16 @@ uint8_t buttNum;
 Adafruit_BluefruitLE_SPI ble(BLUEFRUIT_SPI_CS, BLUEFRUIT_SPI_IRQ, BLUEFRUIT_SPI_RST);
 
 // A small helper
-void error(const __FlashStringHelper*err) {
+void error(const __FlashStringHelper *err) {
   Serial.println(err);
-  while (1);
+  while (1)
+    ;
 }
 
 // function prototypes over in packetparser.cpp
 uint8_t readPacket(Adafruit_BLE *ble, uint16_t timeout);
 float parsefloat(uint8_t *buffer);
-void printHex(const uint8_t * data, const uint32_t numBytes);
+void printHex(const uint8_t *data, const uint32_t numBytes);
 
 // the packet buffer
 extern uint8_t packetbuffer[];
@@ -180,34 +181,31 @@ void setup() {
   pinMode(rightPWM, OUTPUT);
   state = 0;
   xTaskCreatePinnedToCore(
-    Task1code,   /* Task function. */
-    "Task1",     /* name of task. */
-    10000,       /* Stack size of task */
-    NULL,        /* parameter of the task */
-    1,           /* priority of the task */
-    &Task2,      /* Task handle to keep track of created task */
-    0);          /* pin task to core 0 */
+    Task1code, /* Task function. */
+    "Task1",   /* name of task. */
+    10000,     /* Stack size of task */
+    NULL,      /* parameter of the task */
+    1,         /* priority of the task */
+    &Task2,    /* Task handle to keep track of created task */
+    0);        /* pin task to core 0 */
   delay(100);
   //
   //
   //create a task that will be executed in the Task2code() function, with priority 1 and executed on core 1
   xTaskCreatePinnedToCore(
-    Task2code,   /* Task function. */
-    "Task2",     /* name of task. */
-    10000,       /* Stack size of task */
-    NULL,        /* parameter of the task */
-    1,           /* priority of the task */
-    &Task1,      /* Task handle to keep track of created task */
-    1);          /* pin task to core 1 */
+    Task2code, /* Task function. */
+    "Task2",   /* name of task. */
+    10000,     /* Stack size of task */
+    NULL,      /* parameter of the task */
+    1,         /* priority of the task */
+    &Task1,    /* Task handle to keep track of created task */
+    1);        /* pin task to core 1 */
   delay(100);
-
-
-
 }
 
 
 
-void Task1code( void * parameter) {
+void Task1code(void *parameter) {
   // motor core setup function
   motorCoreSetup();
 
@@ -228,7 +226,7 @@ void Task1code( void * parameter) {
 }
 
 
-void Task2code( void * pvParameters ) {
+void Task2code(void *pvParameters) {
 
   // the setup function on command core
   commandCoreSetup();
@@ -242,7 +240,6 @@ void Task2code( void * pvParameters ) {
       case 1:
         state1CommandCore();
         break;
-
     }
 
     //    vTaskDelay(1);
@@ -256,11 +253,9 @@ void loop() {
 void printResult(HUSKYLENSResult result) {
   if (result.command == COMMAND_RETURN_BLOCK) {
     Serial.println(String() + F("Block:xCenter=") + result.xCenter + F(",yCenter=") + result.yCenter + F(",width=") + result.width + F(",height=") + result.height + F(",ID=") + result.ID);
-  }
-  else if (result.command == COMMAND_RETURN_ARROW) {
+  } else if (result.command == COMMAND_RETURN_ARROW) {
     Serial.println(String() + F("Arrow:xOrigin=") + result.xOrigin + F(",yOrigin=") + result.yOrigin + F(",xTarget=") + result.xTarget + F(",yTarget=") + result.yTarget + F(",ID=") + result.ID);
-  }
-  else {
+  } else {
     Serial.println("Object unknown!");
   }
 }
@@ -335,7 +330,7 @@ void setSpeeds(int leftVDes, int rightVDes) {
       analogWrite(IN2, -rightD);
       //     analogWrite(IN1, -rightD);
       //    analogWrite(IN2, LOW);
-    } else  {
+    } else {
       analogWrite(IN1, LOW);
       analogWrite(IN2, LOW);
     }
@@ -349,12 +344,11 @@ void setSpeeds(int leftVDes, int rightVDes) {
       //    analogWrite(IN4, -leftD);
       analogWrite(IN3, -leftD);
       analogWrite(IN4, LOW);
-    } else  {
+    } else {
       analogWrite(IN3, LOW);
       analogWrite(IN4, LOW);
     }
   }
-
 }
 
 void stopMoving() {
@@ -379,17 +373,17 @@ void motorCoreSetup() {
   //  myPID.SetTunings(Kp, Ki, Kd);
 
 
-  ESP32Encoder::useInternalWeakPullResistors = UP; // Enable the weak pull up resistors
-  leftEncoder.attachHalfQuad(leftEncoderY, leftEncoderW); // Attache pins for use as encoder pins
-  leftEncoder.setCount(0);  // set starting count value after attaching
-  rightEncoder.attachHalfQuad(rightEncoderY, rightEncoderW); // Attache pins for use as encoder pins
-  rightEncoder.setCount(0);  // set starting count value after attaching
+  ESP32Encoder::useInternalWeakPullResistors = UP;            // Enable the weak pull up resistors
+  leftEncoder.attachHalfQuad(leftEncoderY, leftEncoderW);     // Attache pins for use as encoder pins
+  leftEncoder.setCount(0);                                    // set starting count value after attaching
+  rightEncoder.attachHalfQuad(rightEncoderY, rightEncoderW);  // Attache pins for use as encoder pins
+  rightEncoder.setCount(0);                                   // set starting count value after attaching
 
 
-  timer1 = timerBegin(1, 80, true);  // timer 1, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 80 -> 1000 ns = 1 us, countUp
-  timerAttachInterrupt(timer1, &onTime1, true); // edge (not level) triggered
-  timerAlarmWrite(timer1, 10000, true); // 10000 * 1 us = 10 ms, autoreload true
-  timerAlarmEnable(timer1); // enable
+  timer1 = timerBegin(1, 80, true);              // timer 1, MWDT clock period = 12.5 ns * TIMGn_Tx_WDT_CLK_PRESCALE -> 12.5 ns * 80 -> 1000 ns = 1 us, countUp
+  timerAttachInterrupt(timer1, &onTime1, true);  // edge (not level) triggered
+  timerAlarmWrite(timer1, 10000, true);          // 10000 * 1 us = 10 ms, autoreload true
+  timerAlarmEnable(timer1);                      // enable
 
   Wire.begin(SDA, SCL);
 
@@ -399,15 +393,14 @@ void motorCoreSetup() {
     //    while(1);
   }
 
-  if (!huskylens.begin(mySerial))
-  {
+  if (!huskylens.begin(mySerial)) {
     Serial.println(F("Begin failed!"));
     Serial.println(F("1.Please recheck the \"Protocol Type\" in HUSKYLENS (General Settings>>Protol Type>>I2C)"));
     Serial.println(F("2.Please recheck the connection."));
     delay(100);
   }
   Serial.println("Initializing HUSKYLENS");
-  huskylens.writeAlgorithm(ALGORITHM_OBJECT_TRACKING); //Switch the algorithm to object tracking.
+  huskylens.writeAlgorithm(ALGORITHM_OBJECT_TRACKING);  //Switch the algorithm to object tracking.
 }
 
 
@@ -416,9 +409,11 @@ void state0MotorCore() {
   int32_t error;
   //   float newDistance;
 
-  //getDistance() returns the distance reading in cm
-  //  newDistance = myLIDAR.getDistance();
+  //getDistance() returns the distance reading in cm, slow operation
+  double newDistance = myLIDAR.getDistance();
+
   //  Serial.print("New distance: ");
+
   //  Serial.print(newDistance/100);
   //  Serial.println(" m");
   if (!huskylens.request(ID1)) {
@@ -426,14 +421,12 @@ void state0MotorCore() {
     lD = 0;
     rD = 0;
     stopMoving();
-  }
-  else if (!huskylens.isLearned()) {
+  } else if (!huskylens.isLearned()) {
     //    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
     lD = 0;
     rD = 0;
     stopMoving();
-  }
-  else if (!huskylens.available()) {
+  } else if (!huskylens.available()) {
     //    Serial.println(F("No block or arrow appears on the screen!"));
     lD = 0;
     rD = 0;
@@ -502,13 +495,11 @@ void state0MotorCore() {
       //        if (
 
 
-    setSpeeds(lD, rD);
-  } else {
-    stopMoving();
+      setSpeeds(lD, rD);
+    } else {
+      stopMoving();
+    }
   }
-  }
-
-
 }
 
 void state1MotorCore() {
@@ -527,75 +518,43 @@ void state1MotorCore() {
     iRError = 0;
     stopMoving();
   } else {
-    if (myPins[1]) {
-      //      lD = lD + 80;
-      //      if (lD >= NOM_PWM_VOLTAGE) {
-      //        lD = NOM_PWM_VOLTAGE;
-      //      }
-      //      rD = lD;
-      setSpeeds(-vDes, -vDes);
-    }
+    int forward = myPins[0] - myPins[1];  // 1 for forward motion, -1 backward, 0 hold position
+    int left = myPins[2] - myPins[3];     // 1 for left motion, -1 right, 0 hold position
 
+    Serial.println(String() + forward + F(" ") + left);
 
-    // forward motion
-    if (myPins[0]) {
-      //      lD = lD - 80;
-      //      if (lD <= -NOM_PWM_VOLTAGE) {
-      //        lD = -NOM_PWM_VOLTAGE;
-      //      }
-      //      rD = lD;
-      Serial.println("button 5 pressed");
-
-      setSpeeds(vDes, vDes);
-
-
-    }
-    if (myPins[2] && myPins[1] || myPins[2] && myPins[0] ) {
-      lD = lD - 80;
-      rD = rD + 80;
-      if (rD >= MAX_PWM_VOLTAGE) {
-        rD = MAX_PWM_VOLTAGE;
+    // if all four buttons held, hold position
+    if (abs(forward) + abs(left) == 0) {
+      setSpeeds(0, 0);
+    } else {
+      
+      double leftTurningFraction = 1;
+      double rightTurningFraction = 1;
+      double leftLinearFraction = forward;
+      double rightLinearFraction = forward;
+      if (forward == 0) {
+        if (left < 0) {
+          leftLinearFraction = 1;
+          rightLinearFraction = -1;
+      } else if (left > 0) {
+        leftLinearFraction = -1;
+          rightLinearFraction = 1;
       }
-      if (lD <= -MAX_PWM_VOLTAGE) {
-        lD = -MAX_PWM_VOLTAGE;
       }
-    } else if (myPins[2]) {
-      // left only
-      //      lD = lD - 80;
-      //      rD = rD + 80;
-      //      if (rD >= NOM_PWM_VOLTAGE) {
-      //        rD = NOM_PWM_VOLTAGE;
-      //      }
-      //      if (lD <= -NOM_PWM_VOLTAGE) {
-      //        lD = -NOM_PWM_VOLTAGE;
-      //      }
-      setSpeeds(-vDes, vDes);
-    }
-    if (myPins[3] && myPins[1] || myPins[3] && myPins[0]) {
-      lD = lD + 80;
-      rD = rD - 80;
-      if (lD >= MAX_PWM_VOLTAGE) {
-        lD = MAX_PWM_VOLTAGE;
-      }
-      if (rD <= -MAX_PWM_VOLTAGE) {
-        rD = -MAX_PWM_VOLTAGE;
-      }
-    } else if (myPins[3]) {
-      // right only
-      //      lD = lD + 80;
-      //      rD = rD - 80;
-      //      if (lD >= NOM_PWM_VOLTAGE) {
-      //        lD = NOM_PWM_VOLTAGE;
-      //      }
-      //      if (rD <= -NOM_PWM_VOLTAGE) {
-      //        rD = -NOM_PWM_VOLTAGE;
-      //      }
-      setSpeeds(vDes, -vDes);
-    }
 
-    prevLD = lD;
-    prevRD = rD;
-    //    setSpeeds(lD, rD);
+      if (left < 0) {
+        leftTurningFraction = outerTurningSpeedFraction;
+        rightTurningFraction = innerTurningSpeedFraction;
+        
+      } else if (left > 0) {
+        leftTurningFraction = innerTurningSpeedFraction;
+        rightTurningFraction = outerTurningSpeedFraction;
+      }
+
+      int leftSpeed = leftTurningFraction * leftLinearFraction * vDes;
+      int rightSpeed = rightTurningFraction * rightLinearFraction * vDes;
+      setSpeeds(leftSpeed, rightSpeed);
+    }
   }
 }
 
@@ -605,17 +564,15 @@ void commandCoreSetup() {
   /* Initialise the module */
   Serial.print(F("Initialising the Bluefruit LE module: "));
 
-  if ( !ble.begin(VERBOSE_MODE) )
-  {
+  if (!ble.begin(VERBOSE_MODE)) {
     error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
   }
-  Serial.println( F("OK!") );
+  Serial.println(F("OK!"));
 
-  if ( FACTORYRESET_ENABLE )
-  {
+  if (FACTORYRESET_ENABLE) {
     /* Perform a factory reset to make sure everything is in a known state */
     Serial.println(F("Performing a factory reset: "));
-    if ( ! ble.factoryReset() ) {
+    if (!ble.factoryReset()) {
       error(F("Couldn't factory reset"));
     }
   }
@@ -642,15 +599,14 @@ void state0CommandCore() {
     Serial.println(F("******************************"));
 
     // LED Activity command is only supported from 0.6.6
-    if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) )
-    {
+    if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION)) {
       // Change Mode LED Activity
       Serial.println(F("Change LED activity to " MODE_LED_BEHAVIOUR));
       ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR);
     }
 
     // Set Bluefruit to DATA mode
-    Serial.println( F("Switching to DATA mode!") );
+    Serial.println(F("Switching to DATA mode!"));
     ble.setMode(BLUEFRUIT_MODE_DATA);
 
     Serial.println(F("******************************"));
@@ -668,9 +624,10 @@ void state1CommandCore() {
     // Buttons
     if (packetbuffer[1] == 'B') {
       uint8_t buttnum = packetbuffer[2] - '0';
-      buttNum = buttnum; // 5 forward, 6 backward, 7 left, 8 right
+      buttNum = buttnum;  // 5 forward, 6 backward, 7 left, 8 right
       boolean pressed = packetbuffer[3] - '0';
-      Serial.print ("Button "); Serial.print(buttnum);
+      Serial.print("Button ");
+      Serial.print(buttnum);
       if (pressed) {
         pressedOr = " pressed";
         switch (buttnum) {
@@ -690,10 +647,10 @@ void state1CommandCore() {
             myPins[4] = true;
             break;
           case 2:
-            NOM_PWM_VOLTAGE = 255;
+            vDes = MAX_VDES;
             break;
           case 3:
-            NOM_PWM_VOLTAGE = 150;
+            vDes = NOM_VDES;
             break;
         }
         Serial.println(" pressed");
