@@ -81,15 +81,15 @@ int prevLD = 0;
 int prevRD = 0;
 boolean remoteButtonPressed = false;
 boolean myPins[] = { 0, 0, 0, 0, 0 };
-int prevDifference = 0;
-double setPoint;
-double input;
+
+// double setPoint;
+// double input;
 //double output;
 //PID myPID(&input, &output, &setPoint, Kp, Ki, Kd, DIRECT);
-int iError = 0;
+// int iError = 0;
 int prevResult = 160;
 // Huskylens top left (0, 0), bottom right (320, 240), (W, H)
-#define SCREEN_X_CENTER 160
+
 
 
 SoftwareSerial mySerial(RX, TX);  // RX, TX
@@ -106,7 +106,6 @@ int potReading = 0;
 
 //int Kp = 80;   // TUNE THESE VALUES TO CHANGE CONTROLLER PERFORMANCE
 //int Ki = 2;
-int pError = 0;
 
 //Setup interrupt variables ----------------------------
 volatile int leftCount = 0;              // encoder count
@@ -299,10 +298,12 @@ void setSpeeds(int leftVDes, int rightVDes) {
 
     int leftD = calculateD(leftVDifference, iLError, dLError);
     int rightD = calculateD(rightVDifference, iRError, dRError);
+
+
     //      Serial.println(String() + F("iLError is: ") + iLError + F(", iRError is: ") + iRError);
 
     //      Serial.println(String() + F("left input is: ") + leftD + F(", right input is: ") + rightD);
-    Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
+    // Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
 
 
     if (leftD >= MAX_PWM_VOLTAGE) {
@@ -368,7 +369,7 @@ int calculateD(int difference, int iError, int dError) {
 void motorCoreSetup() {
   mySerial.begin(9600);
   // PID variable set up
-  setPoint = 0;
+  // setPoint = 0;
   //  myPID.SetMode(AUTOMATIC);
   //  myPID.SetTunings(Kp, Ki, Kd);
 
@@ -432,73 +433,79 @@ void state0MotorCore() {
     rD = 0;
     stopMoving();
   } else {
+    lD = 0;
+    rD = 0;
     HUSKYLENSResult result = huskylens.read();
     //        printResult(result);
+
+    // horizontal tracking
     int xCenter = result.xCenter;
-    int difference = SCREEN_X_CENTER - xCenter;
-    int output = 0;
-    if (abs(difference) > angleTolerance) {
-      int dError = difference - prevDifference;
-      prevDifference = difference;
-      pError += difference;
-      if (abs(pError) >= IMax) {
-        if (pError < 0) {
-          pError = -IMax;
+    int xDifference = SCREEN_X_CENTER - xCenter;
+    int xOutput = 0;
+    if (abs(xDifference) > angleTolerance) {
+      int dError = xDifference - prevXDifference;
+      prevXDifference = xDifference;
+      pErrorX += xDifference;
+      if (abs(pErrorX) >= IMax) {
+        if (pErrorX < 0) {
+          pErrorX = -IMax;
         } else {
-          pError = IMax;
+          pErrorX = IMax;
         }
       }
-
-      //    int inputConverted = map(difference, -160, 160, -MAX_PWM_VOLTAGE, MAX_PWM_VOLTAGE);
-      //    input = abs(inputConverted);
-      input = difference;
-      //    myPID.Compute();
-      //    Serial.println(String() + F("input is: ") + input + F(" ,output is: ") + output);
-
-      output = Kp * difference + Ki * pError + Kd * dError;
-
-      Serial.println(difference);
-      Serial.println(output);
-      lD = -output;
-      rD = output;
-      //    if (difference < 0) {
-      //      lD = -output;
-      //      rD = output;
-      //    } else {
-      //      lD = output;
-      //      rD = -output;
-      //    }
-
-      //           lD = lD - output;
-      //          rD = rD + output;
-      if (rD >= vDes) {
-        rD = vDes;
-      } else if (rD <= -vDes) {
-        rD = -vDes;
-      }
-      if (lD <= -vDes) {
-        lD = -vDes;
-      } else if (lD >= vDes) {
-        lD = vDes;
-      }
-      ////    Serial.println(String() + F("ld is: ") + lD + F(" ,rd is: ") + rD);
-      //Serial.println(String() +F("input ") + input);
-      //Serial.println(String() +F("output ") + output);
-      //Serial.println(String() +F("lD ") + lD);
-      //Serial.println(String() +F("rD ") + rD);
-
-      //          lD = lD + output;
-      //          rD = rD - output;
-
-      //    Serial.println(String() + F("difference is: ") + difference);
-      //        Serial.println (String() + F("leftWheel is: ") + leftEncoder.getCount());
-      //        if (
+      // input = difference;
 
 
-      setSpeeds(lD, rD);
-    } else {
-      stopMoving();
+      xOutput = Kp * xDifference + Ki * pErrorX + Kd * dError;
+
+      // Serial.println(xDifference);
+      // Serial.println(xOutput);
+      lD = -xOutput;
+      rD = xOutput;
     }
+    // else {
+    //   stopMoving();
+    // }
+
+
+    // vertical tracking
+    int yCenter = result.yCenter;
+    int yDifference = SCREEN_Y_CENTER - yCenter;
+    int yOutput = 0;
+    if (abs(yDifference) > VERTICAL_TOLERANCE) {
+      int dError = yDifference - prevYDifference;
+      prevYDifference = yDifference;
+      pErrorY += yDifference;
+      if (abs(pErrorY) >= lIMax) {
+        if (pErrorY < 0) {
+          pErrorY = -lIMax;
+        } else {
+          pErrorY = lIMax;
+        }
+      }
+      yOutput = Klp * yDifference + Kli * pErrorY + Kld * dError;
+
+      // lD += -yOutput;
+      // rD += -yOutput;
+    }
+
+    Serial.println(String() + F("ld: ")+ lD + F(", rD: ") + rD);
+
+
+    // Data validation
+    if (rD >= vDes) {
+      rD = vDes;
+    } else if (rD <= -vDes) {
+      rD = -vDes;
+    }
+    if (lD <= -vDes) {
+      lD = -vDes;
+    } else if (lD >= vDes) {
+      lD = vDes;
+    }
+
+
+    setSpeeds(lD, rD);
   }
 }
 
@@ -527,7 +534,7 @@ void state1MotorCore() {
     if (abs(forward) + abs(left) == 0) {
       setSpeeds(0, 0);
     } else {
-      
+
       double leftTurningFraction = 1;
       double rightTurningFraction = 1;
       double leftLinearFraction = forward;
@@ -536,16 +543,16 @@ void state1MotorCore() {
         if (left < 0) {
           leftLinearFraction = 1;
           rightLinearFraction = -1;
-      } else if (left > 0) {
-        leftLinearFraction = -1;
+        } else if (left > 0) {
+          leftLinearFraction = -1;
           rightLinearFraction = 1;
-      }
+        }
       }
 
       if (left < 0) {
         leftTurningFraction = outerTurningSpeedFraction;
         rightTurningFraction = innerTurningSpeedFraction;
-        
+
       } else if (left > 0) {
         leftTurningFraction = innerTurningSpeedFraction;
         rightTurningFraction = outerTurningSpeedFraction;
