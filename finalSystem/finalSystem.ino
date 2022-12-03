@@ -118,6 +118,8 @@ hw_timer_t *timer1 = NULL;
 portMUX_TYPE timerMux0 = portMUX_INITIALIZER_UNLOCKED;
 portMUX_TYPE timerMux1 = portMUX_INITIALIZER_UNLOCKED;
 
+int initialWidth = 0;
+
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 Drive drive(IN1, IN2, IN3, IN4);  //Create an instance of the function
@@ -411,7 +413,7 @@ void state0MotorCore() {
   //   float newDistance;
 
   //getDistance() returns the distance reading in cm, slow operation
-  double newDistance = myLIDAR.getDistance();
+  // double newDistance = myLIDAR.getDistance();
 
   //  Serial.print("New distance: ");
 
@@ -424,6 +426,7 @@ void state0MotorCore() {
     stopMoving();
   } else if (!huskylens.isLearned()) {
     //    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
+    initialWidth = 0;
     lD = 0;
     rD = 0;
     stopMoving();
@@ -438,9 +441,13 @@ void state0MotorCore() {
     HUSKYLENSResult result = huskylens.read();
     //        printResult(result);
 
+
+
+
+
     // horizontal tracking
-    int xCenter = result.xCenter;
-    int xDifference = SCREEN_X_CENTER - xCenter;
+    int xOrigin = result.xCenter;
+    int xDifference = SCREEN_X_CENTER - xOrigin;
     int xOutput = 0;
     if (abs(xDifference) > angleTolerance) {
       int dError = xDifference - prevXDifference;
@@ -467,6 +474,8 @@ void state0MotorCore() {
     //   stopMoving();
     // }
 
+  
+
 
     // vertical tracking
     int yCenter = result.yCenter;
@@ -485,9 +494,38 @@ void state0MotorCore() {
       }
       yOutput = Klp * yDifference + Kli * pErrorY + Kld * dError;
 
-      // lD += -yOutput;
-      // rD += -yOutput;
+      lD += -yOutput;
+      rD += -yOutput;
     }
+
+
+
+    // depth perception
+    if (initialWidth == 0) {
+    initialWidth = result.width;
+    }
+    int currentWidth = result.width;
+    int wDifference = initialWidth - currentWidth;
+    int wOutput = 0;
+    if (abs(wDifference) > WIDTH_TOLERANCE) {
+      int dError = wDifference - prevWDifference;
+      prevWDifference = wDifference;
+      pErrorW += wDifference;
+      if (abs(pErrorW) >= wIMax) {
+        if (pErrorW < 0) {
+          pErrorW = -wIMax;
+        } else {
+          pErrorW = wIMax;
+        }        
+      }
+
+      wOutput = Kwp * wDifference + Kwi * pErrorW + Kwd * dError;
+      lD += wOutput;
+      rD += wOutput;
+    }
+  
+
+
 
     Serial.println(String() + F("ld: ")+ lD + F(", rD: ") + rD);
 

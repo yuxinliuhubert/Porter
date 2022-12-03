@@ -1,8 +1,8 @@
 // COMMON SETTINGS
 // ----------------------------------------------------------------------------------------------
 // k values for horizontal tracking
-#define Kp 0.05
-#define Ki 0.002
+#define Kp 0.07
+#define Ki 0.01
 #define Kd 0.6
 
 #define IMax 100
@@ -14,16 +14,25 @@ int pErrorX = 0;
 
 
 // k value for vertical tracking
-#define Klp 0.02
-#define Kli 0.005
-#define Kld 0.5
+#define Klp 0.15
+#define Kli 0.05
+#define Kld 1
 
 #define lIMax 30
 #define SCREEN_Y_CENTER 120
-#define VERTICAL_TOLERANCE 40
+#define VERTICAL_TOLERANCE 45
 int prevYDifference = 0;
 int pErrorY = 0;
 
+
+// k value for width tracking
+#define Kwp 0.1
+#define Kwi 0.08
+#define Kwd 1
+#define wIMax 100
+#define WIDTH_TOLERANCE 30
+int prevWDifference = 0;
+int pErrorW = 0;
 
 // speeds
 #define Ksp 8
