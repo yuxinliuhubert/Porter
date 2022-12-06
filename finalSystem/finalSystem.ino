@@ -34,6 +34,7 @@
 #include <Drive.h>  //Include the Drive library
 #include "analogWrite.h"
 #include "LIDARLite_v4LED.h"
+#include "HX711.h"
 #include <PID_v1.h>;
 
 // pin definitions
@@ -42,15 +43,26 @@
 #define IN2 27
 #define IN3 25
 #define IN4 26
+
+
 #define RX 15
 #define TX 4
 
-#define rightEncoderY 35
-#define rightEncoderW 34
+// #define rightEncoderY 34
+// #define rightEncoderW 35
+
 #define leftEncoderY 39
 #define leftEncoderW 36
-#define SDA 21
-#define SCL 22
+
+#define rightEncoderY 35
+#define rightEncoderW 34
+// #define leftEncoderY 36
+// #define leftEncoderW 39
+#define LED_LEFT 2
+#define LC_RIGHT_DT 22
+#define LC_RIGHT_SCK 23
+#define LC_LEFT_DT 13
+#define LC_LEFT_SCK 21
 
 #if SOFTWARE_SERIAL_AVAILABLE
 #include <SoftwareSerial.h>
@@ -63,6 +75,13 @@
 #define ZUMO_FAST 255
 
 
+HX711 leftScale;
+HX711 rightScale;
+
+#define WEIGHT_LIMIT 15
+
+float leftWeight = 0.0;
+float rightWeight = 0.0;
 // state machine set up
 // state 0 default machine follow mode; state 1 manual override
 int state;
@@ -74,6 +93,8 @@ const int ledChannel_2 = 2;
 const int resolution = 8;
 const int MAX_PWM_VOLTAGE = 255;
 int NOM_PWM_VOLTAGE = 150;
+
+int xOrigin = SCREEN_X_CENTER;
 
 int lD = 0;
 int rD = 0;
@@ -123,7 +144,7 @@ int initialWidth = 0;
 TaskHandle_t Task1;
 TaskHandle_t Task2;
 Drive drive(IN1, IN2, IN3, IN4);  //Create an instance of the function
-LIDARLite_v4LED myLIDAR;          //Click here to get the library: http://librarymanager/All#SparkFun_LIDARLitev4 by SparkFun
+// LIDARLite_v4LED myLIDAR;          //Click here to get the library: http://librarymanager/All#SparkFun_LIDARLitev4 by SparkFun
 
 //Initialization ------------------------------------
 void IRAM_ATTR onTime0() {
@@ -180,6 +201,12 @@ void setup() {
   Serial.begin(115200);
   pinMode(leftPWM, OUTPUT);
   pinMode(rightPWM, OUTPUT);
+  pinMode(LED_LEFT, OUTPUT);
+  leftScale.begin(LC_LEFT_DT, LC_LEFT_SCK);
+  rightScale.begin(LC_RIGHT_DT, LC_RIGHT_SCK);
+
+  digitalWrite(LED_LEFT, HIGH);
+
   state = 0;
   xTaskCreatePinnedToCore(
     Task1code, /* Task function. */
@@ -212,6 +239,19 @@ void Task1code(void *parameter) {
 
   // motor core loop function
   for (;;) {
+
+    if (leftScale.is_ready()) {
+      leftWeight = leftScale.read()*2.0964e-05+0.5336;
+    }
+    if (rightScale.is_ready()) {
+      rightWeight = rightScale.read()*1.9881e-05+-0.1150;
+    }
+    if (leftWeight + rightWeight > WEIGHT_LIMIT) {
+      digitalWrite(LED_LEFT, HIGH);
+    } else {
+      digitalWrite(LED_LEFT, LOW);
+    }
+
     switch (state) {
       case 0:
         state0MotorCore();
@@ -303,9 +343,9 @@ void setSpeeds(int leftVDes, int rightVDes) {
 
 
     //      Serial.println(String() + F("iLError is: ") + iLError + F(", iRError is: ") + iRError);
-
-    //      Serial.println(String() + F("left input is: ") + leftD + F(", right input is: ") + rightD);
-    // Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
+// 
+        //  Serial.println(String() + F("left input is: ") + leftD + F(", right input is: ") + rightD);
+    Serial.println(String() + F("left speed is: ") + leftCount + F(", right speed is: ") + rightCount);
 
 
     if (leftD >= MAX_PWM_VOLTAGE) {
@@ -321,32 +361,37 @@ void setSpeeds(int leftVDes, int rightVDes) {
     if (rightD <= -MAX_PWM_VOLTAGE) {
       rightD = -MAX_PWM_VOLTAGE;
     }
-    if (rightD > 0) {
+    if (leftD > 0) {
       //    analogWrite(leftPWM, rightD);
-      //analogWrite(IN1, LOW);
+      // analogWrite(IN1, LOW);
       //    analogWrite(IN2, rightD);
-      analogWrite(IN1, rightD);
+      analogWrite(IN1, leftD);
       analogWrite(IN2, LOW);
 
-    } else if (rightD < 0) {
+    } else if (leftD < 0) {
       analogWrite(IN1, LOW);
-      analogWrite(IN2, -rightD);
-      //     analogWrite(IN1, -rightD);
-      //    analogWrite(IN2, LOW);
+      analogWrite(IN2, -leftD);
+        //   analogWrite(IN1, -rightD);
+        //  analogWrite(IN2, LOW);
     } else {
       analogWrite(IN1, LOW);
       analogWrite(IN2, LOW);
     }
-    if (leftD > 0) {
-      analogWrite(IN3, LOW);
-      analogWrite(IN4, leftD);
-      //    analogWrite(IN3, leftD);
-      //    analogWrite(IN4, LOW);
-    } else if (leftD < 0) {
-      //    analogWrite(IN3, LOW);
-      //    analogWrite(IN4, -leftD);
-      analogWrite(IN3, -leftD);
-      analogWrite(IN4, LOW);
+    if (rightD > 0) {
+      // analogWrite(IN3, LOW);
+      // analogWrite(IN4, leftD);
+
+
+      
+         analogWrite(IN3, rightD);
+         analogWrite(IN4, LOW);
+    } else if (rightD < 0) {
+         analogWrite(IN3, LOW);
+         analogWrite(IN4, -rightD);
+
+
+      // analogWrite(IN3, -leftD);
+      // analogWrite(IN4, LOW);
     } else {
       analogWrite(IN3, LOW);
       analogWrite(IN4, LOW);
@@ -375,6 +420,8 @@ void motorCoreSetup() {
   //  myPID.SetMode(AUTOMATIC);
   //  myPID.SetTunings(Kp, Ki, Kd);
 
+  // sweepTimeComp = millis();
+  surveyTimeComp = millis();
 
   ESP32Encoder::useInternalWeakPullResistors = UP;            // Enable the weak pull up resistors
   leftEncoder.attachHalfQuad(leftEncoderY, leftEncoderW);     // Attache pins for use as encoder pins
@@ -388,13 +435,13 @@ void motorCoreSetup() {
   timerAlarmWrite(timer1, 10000, true);          // 10000 * 1 us = 10 ms, autoreload true
   timerAlarmEnable(timer1);                      // enable
 
-  Wire.begin(SDA, SCL);
+  // Wire.begin(SDA, SCL);
 
   //check if LIDAR will acknowledge over I2C
-  if (myLIDAR.begin() == false) {
-    Serial.println("Device did not acknowledge! Freezing.");
-    //    while(1);
-  }
+  // if (myLIDAR.begin() == false) {
+  //   Serial.println("Device did not acknowledge! Freezing.");
+  //   //    while(1);
+  // }
 
   if (!huskylens.begin(mySerial)) {
     Serial.println(F("Begin failed!"));
@@ -423,30 +470,68 @@ void state0MotorCore() {
     //    Serial.println(F("Fail to request data from HUSKYLENS, recheck the connection!"));
     lD = 0;
     rD = 0;
+    swept = false;
+    timeReset = false;
     stopMoving();
   } else if (!huskylens.isLearned()) {
     //    Serial.println(F("Nothing learned, press learn button on HUSKYLENS to learn one!"));
     initialWidth = 0;
     lD = 0;
     rD = 0;
+    swept = false;
+    timeReset = false;
     stopMoving();
   } else if (!huskylens.available()) {
     //    Serial.println(F("No block or arrow appears on the screen!"));
-    lD = 0;
-    rD = 0;
-    stopMoving();
+    if (!swept) {
+      int currentTime = millis();
+      if (!timeReset) {
+        surveyTimeComp = currentTime;
+        timeReset = true;
+      }
+      int initialLSpeed = 0;
+      int initialRSpeed = 0;
+      if (xOrigin < SCREEN_X_CENTER) {
+        initialLSpeed = -SURVEY_SPEED;
+        initialRSpeed = SURVEY_SPEED;
+      } else if (xOrigin > SCREEN_X_CENTER) {
+        initialLSpeed = SURVEY_SPEED;
+        initialRSpeed = -SURVEY_SPEED;
+      }
+      lD = initialLSpeed;
+      rD = initialRSpeed;
+      // surveyTimeComp  = millis();
+
+      if (currentTime - surveyTimeComp > SWEEP_INTERVAL / 4 && currentTime - surveyTimeComp < SWEEP_INTERVAL / 4 * 3) {
+        lD = -initialLSpeed;
+        rD = -initialRSpeed;
+      } else if (currentTime - surveyTimeComp >= SWEEP_INTERVAL / 4 * 3 && currentTime - surveyTimeComp < SWEEP_INTERVAL) {
+        lD = initialLSpeed;
+        rD = initialRSpeed;
+      } else if (currentTime - surveyTimeComp >= SWEEP_INTERVAL) {
+        swept = true;
+      }
+
+      setSpeeds(lD, rD);
+    } else {
+      swept = true;
+      stopMoving();
+    }
+    // setSpeeds(lD,rD);
   } else {
     lD = 0;
     rD = 0;
+    swept = false;
+    timeReset = false;
     HUSKYLENSResult result = huskylens.read();
-    //        printResult(result);
+           printResult(result);
 
 
 
 
 
     // horizontal tracking
-    int xOrigin = result.xCenter;
+    xOrigin = result.xCenter;
     int xDifference = SCREEN_X_CENTER - xOrigin;
     int xOutput = 0;
     if (abs(xDifference) > angleTolerance) {
@@ -474,7 +559,7 @@ void state0MotorCore() {
     //   stopMoving();
     // }
 
-  
+
 
 
     // vertical tracking
@@ -502,7 +587,7 @@ void state0MotorCore() {
 
     // depth perception
     if (initialWidth == 0) {
-    initialWidth = result.width;
+      initialWidth = result.width;
     }
     int currentWidth = result.width;
     int wDifference = initialWidth - currentWidth;
@@ -516,30 +601,30 @@ void state0MotorCore() {
           pErrorW = -wIMax;
         } else {
           pErrorW = wIMax;
-        }        
+        }
       }
 
       wOutput = Kwp * wDifference + Kwi * pErrorW + Kwd * dError;
       lD += wOutput;
       rD += wOutput;
     }
-  
 
 
 
-    Serial.println(String() + F("ld: ")+ lD + F(", rD: ") + rD);
+
+    Serial.println(String() + F("ld: ") + lD + F(", rD: ") + rD);
 
 
     // Data validation
-    if (rD >= vDes) {
-      rD = vDes;
-    } else if (rD <= -vDes) {
-      rD = -vDes;
+    if (rD >= HUSKYSPEED) {
+      rD = HUSKYSPEED;
+    } else if (rD <= -HUSKYSPEED) {
+      rD = -HUSKYSPEED;
     }
-    if (lD <= -vDes) {
-      lD = -vDes;
-    } else if (lD >= vDes) {
-      lD = vDes;
+    if (lD <= -HUSKYSPEED) {
+      lD = -HUSKYSPEED;
+    } else if (lD >= HUSKYSPEED) {
+      lD = HUSKYSPEED;
     }
 
 
@@ -587,7 +672,7 @@ void state1MotorCore() {
         }
       }
 
-      if (left < 0) {
+      if (left < 0) {// right turn
         leftTurningFraction = outerTurningSpeedFraction;
         rightTurningFraction = innerTurningSpeedFraction;
 
@@ -596,8 +681,13 @@ void state1MotorCore() {
         rightTurningFraction = outerTurningSpeedFraction;
       }
 
+
       int leftSpeed = leftTurningFraction * leftLinearFraction * vDes;
       int rightSpeed = rightTurningFraction * rightLinearFraction * vDes;
+      
+        Serial.print(leftSpeed);
+      Serial.print(" ");
+      Serial.println(rightSpeed);
       setSpeeds(leftSpeed, rightSpeed);
     }
   }

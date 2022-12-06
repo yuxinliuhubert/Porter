@@ -1,9 +1,12 @@
 // COMMON SETTINGS
 // ----------------------------------------------------------------------------------------------
+
+#define HUSKYSPEED 20
+
 // k values for horizontal tracking
-#define Kp 0.07
+#define Kp 0.05
 #define Ki 0.01
-#define Kd 0.6
+#define Kd 0.3
 
 #define IMax 100
 
@@ -13,10 +16,11 @@ int prevXDifference = 0;
 int pErrorX = 0;
 
 
+
 // k value for vertical tracking
-#define Klp 0.15
-#define Kli 0.05
-#define Kld 1
+#define Klp 0.3
+#define Kli 0.3
+#define Kld 0.8
 
 #define lIMax 30
 #define SCREEN_Y_CENTER 120
@@ -26,9 +30,9 @@ int pErrorY = 0;
 
 
 // k value for width tracking
-#define Kwp 0.1
-#define Kwi 0.08
-#define Kwd 1
+#define Kwp 0.2
+#define Kwi 3
+#define Kwd 0.1
 #define wIMax 100
 #define WIDTH_TOLERANCE 30
 int prevWDifference = 0;
@@ -48,7 +52,7 @@ int iError = 0;
 
 // 14 desireable speed when motor running
 
-#define NOM_VDES 14
+#define NOM_VDES 16
 #define MAX_VDES 44
 int vDes = NOM_VDES;
 
@@ -59,7 +63,11 @@ int prevRightDifference = 0;
 int iLError = 0;
 int iRError = 0;
 
-
+#define SURVEY_SPEED 5
+#define SWEEP_INTERVAL 4000
+bool swept = false;
+int surveyTimeComp;
+bool timeReset = false;
 
 // PWM channel 
 // right motor motor 1, left motor motor 2
