@@ -54,8 +54,10 @@
 #define leftEncoderY 39
 #define leftEncoderW 36
 
-#define rightEncoderY 35
-#define rightEncoderW 34
+#define rightEncoderY 34
+#define rightEncoderW 35
+// NOTE: right encoder is defined opposite to the left encoder because they spin oppopsite to reach same effect
+
 // #define leftEncoderY 36
 // #define leftEncoderW 39
 #define LED_LEFT 2
@@ -78,7 +80,7 @@
 HX711 leftScale;
 HX711 rightScale;
 
-#define WEIGHT_LIMIT 15
+#define WEIGHT_LIMIT 8
 
 float leftWeight = 0.0;
 float rightWeight = 0.0;
@@ -426,7 +428,9 @@ void motorCoreSetup() {
   ESP32Encoder::useInternalWeakPullResistors = UP;            // Enable the weak pull up resistors
   leftEncoder.attachHalfQuad(leftEncoderY, leftEncoderW);     // Attache pins for use as encoder pins
   leftEncoder.setCount(0);                                    // set starting count value after attaching
-  rightEncoder.attachHalfQuad(rightEncoderY, rightEncoderW);  // Attache pins for use as encoder pins
+
+  // right motor must be attached the opposite way since it has to spin the other way 
+  rightEncoder.attachHalfQuad(rightEncoderW, rightEncoderY);  // Attache pins for use as encoder pins
   rightEncoder.setCount(0);                                   // set starting count value after attaching
 
 
@@ -651,7 +655,7 @@ void state1MotorCore() {
     int forward = myPins[0] - myPins[1];  // 1 for forward motion, -1 backward, 0 hold position
     int left = myPins[2] - myPins[3];     // 1 for left motion, -1 right, 0 hold position
 
-    Serial.println(String() + forward + F(" ") + left);
+    // Serial.println(String() + forward + F(" ") + left);
 
     // if all four buttons held, hold position
     if (abs(forward) + abs(left) == 0) {
@@ -666,11 +670,13 @@ void state1MotorCore() {
         if (left < 0) {
           leftLinearFraction = 1;
           rightLinearFraction = -1;
+
         } else if (left > 0) {
           leftLinearFraction = -1;
           rightLinearFraction = 1;
         }
-      }
+      } else {
+    
 
       if (left < 0) {// right turn
         leftTurningFraction = outerTurningSpeedFraction;
@@ -680,14 +686,16 @@ void state1MotorCore() {
         leftTurningFraction = innerTurningSpeedFraction;
         rightTurningFraction = outerTurningSpeedFraction;
       }
+      }
+
 
 
       int leftSpeed = leftTurningFraction * leftLinearFraction * vDes;
       int rightSpeed = rightTurningFraction * rightLinearFraction * vDes;
       
-        Serial.print(leftSpeed);
-      Serial.print(" ");
-      Serial.println(rightSpeed);
+      //   Serial.print(leftSpeed);
+      // Serial.print(" ");
+      // Serial.println(rightSpeed);
       setSpeeds(leftSpeed, rightSpeed);
     }
   }

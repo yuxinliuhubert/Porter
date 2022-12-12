@@ -34,7 +34,7 @@ int pErrorY = 0;
 #define Kwi 3
 #define Kwd 0.1
 #define wIMax 100
-#define WIDTH_TOLERANCE 30
+#define WIDTH_TOLERANCE 50
 int prevWDifference = 0;
 int pErrorW = 0;
 
